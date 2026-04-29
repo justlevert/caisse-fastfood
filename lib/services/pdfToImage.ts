@@ -34,7 +34,6 @@ export async function pdfToImage(pdfFile: File): Promise<{ imageFile: File; prev
   }
 
   // Rendre la page sur le canvas
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
   await (page.render({
     canvasContext: context,
     viewport: viewport,
