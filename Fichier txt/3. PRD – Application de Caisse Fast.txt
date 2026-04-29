@@ -1,0 +1,233 @@
+📄 PRD – Application de Caisse Fast-Food (Tacos/Burgers)
+🟢 1. OBJECTIF DU PROJET
+
+Développer une application de caisse professionnelle pour un fast-food (tacos, burgers), utilisée principalement sur tablette (iPad / Android), avec :
+
+Interface rapide et tactile
+Gestion des commandes en temps réel
+Historique et dashboard avancé
+Paramétrage complet (produits, tickets, imprimantes)
+Utilisation personnelle (non SaaS commercial au départ)
+🟢 2. STACK TECHNIQUE (OBLIGATOIRE)
+Frontend : Next.js + TypeScript
+UI : Tailwind CSS
+Backend / DB : Supabase
+Responsive : optimisé tablette (iPad + Android)
+Mobile secondaire : interface simplifiée pour scan facture
+🔐 3. SÉCURITÉ (À INTÉGRER DÈS LE DÉPART)
+
+⚠️ CRITIQUE – NE JAMAIS IGNORER
+
+Authentification par mot de passe (PIN utilisateur + admin)
+Gestion des rôles :
+Utilisateur
+Administrateur
+Protection des accès Supabase (RLS)
+Validation avant toute modification critique
+AUCUNE suppression d’historique sans :
+mot de passe admin spécifique supplémentaire
+Ne jamais casser :
+variables
+connexions base de données
+schéma existant
+⚠️ 4. RÈGLE POUR WINDSURF (IMPORTANT)
+
+Toujours respecter :
+
+❌ Ne jamais modifier la base de données sans validation
+❌ Ne jamais casser les connexions Supabase
+❌ Ne jamais supprimer du code existant critique
+✅ Toujours demander confirmation avant modification structurelle
+✅ Travailler page par page
+✅ Réutiliser les fonctions existantes
+🟢 5. UTILISATEURS
+👤 Utilisateur
+Accès :
+Vente (commande)
+Historique (lecture seule)
+Réimpression tickets
+Ne peut PAS :
+supprimer
+modifier base
+👑 Administrateur
+Accès complet :
+produits
+catégories
+dashboard
+paramètres
+Peut :
+modifier historique
+Suppression historique :
+nécessite mot de passe spécial
+🟢 6. PAGE LOGIN
+Saisie par clavier numérique
+Code PIN (4 chiffres)
+Interface type iPad (gros boutons)
+Redirection après login
+🟢 7. PAGE COMMANDE (PRINCIPALE)
+Layout :
+Gauche / Centre :
+Catégories (tacos, burgers, etc.)
+Produits en cartes :
+image
+prix
+Droite :
+Panier :
+liste des produits
+total
+boutons + / -
+Fonctionnalités :
+Ajouter produit
+Supprimer produit
+Modifier produit
+Quantité (+ / -)
+Mode :
+sur place
+à emporter
+Validation commande :
+Bouton "Valider"
+Choix buzzer :
+jusqu’à 20 boutons
+Mode paiement :
+Espèces
+Carte
+Si espèces :
+calcul rendu monnaie
+Enregistrement automatique
+🌮 8. TACOS PERSONNALISÉS
+
+Produit spécial avec étapes :
+
+Taille
+Viandes (selon taille)
+Sauces (selon taille)
+Suppléments
+Retirer ingrédients
+UX :
+Images pour chaque choix
+Indicateur étape :
+étape 1 / 2 / 3…
+Possibilité revenir en arrière
+Prix dynamique selon taille
+🟢 9. HISTORIQUE
+Liste commandes :
+date
+montant
+statut
+Admin :
+accès total
+Utilisateur :
+lecture seule
+peut rouvrir commande non finalisée
+Réimpression ticket :
+caisse
+cuisine
+❌ Pas de suppression (sauf admin + mot de passe spécial)
+🟢 10. DASHBOARD
+Ventes :
+jour
+semaine
+mois
+Paiement :
+espèces
+carte
+Graphiques :
+évolution ventes
+Top produits
+🟢 11. CLÔTURE DE CAISSE
+Bouton clôture
+Confirmation obligatoire
+Après validation :
+remise à zéro
+blocage modification
+Enregistrement :
+date
+heure
+fichier log
+🟢 12. PARAMÈTRES
+🔐 Sécurité :
+Modifier mot de passe (ancien obligatoire)
+🧾 TVA :
+TVA sur place
+TVA à emporter
+🖨️ Imprimantes :
+2 imprimantes :
+cuisine
+caisse
+Connexion :
+WiFi
+IP
+📊 Export :
+Historique :
+CSV
+Excel
+Filtre :
+date → date
+⏱️ Timer :
+verrouillage automatique
+retour login
+🟢 13. TICKETS
+Caisse :
+logo
+TVA
+total
+paiement
+Cuisine :
+produits uniquement
+heure / date
+buzzer
+🟢 14. GESTION PRODUITS
+
+Champs :
+
+nom
+image
+prix
+catégorie
+actif / inactif
+
+Fonctions :
+
+duplication produit
+modification rapide
+🟢 15. GESTION CATÉGORIES
+nom
+image
+tri
+regroupement
+admin uniquement
+🟢 16. DESIGN
+
+Style :
+
+blanc
+bleu
+gris (type IKEA)
+
+Contraintes :
+
+pas de dark mode
+interface propre
+lisible
+tactile
+🟢 17. PERFORMANCE
+ultra rapide
+pas de blocage en rush
+envoi async vers Supabase
+UI toujours fluide
+🟢 18. MOBILE (SECONDAIRE)
+
+Fonction :
+
+scan facture
+photo
+IA extraction :
+montant
+date
+validation utilisateur
+enregistrement DB
+🟢 19. RESPONSIVE
+PC → test
+Tablette → priorité
+Mobile → secondaire
+✅ FIN DU PRD
