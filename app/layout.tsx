@@ -5,6 +5,19 @@ import { DataProvider } from "@/lib/contexts/DataContext";
 export const metadata: Metadata = {
   title: "Caisse Fast-Food",
   description: "Application de caisse professionnelle pour fast-food",
+  manifest: "/manifest.json",
+  appleWebApp: {
+    capable: true,
+    statusBarStyle: "black-translucent",
+    title: "Caisse Fast-Food",
+  },
+  viewport: {
+    width: "device-width",
+    initialScale: 1,
+    maximumScale: 1,
+    userScalable: false,
+    viewportFit: "cover",
+  },
 };
 
 export default function RootLayout({

@@ -4,6 +4,7 @@ import { useState, useEffect, useMemo, useCallback } from 'react';
 import dynamic from 'next/dynamic';
 import { Product, CartItem, TacoCustomization } from '@/types/database.types';
 import { useAppData } from '@/lib/contexts/DataContext';
+import { useFullscreen } from '@/lib/hooks/useFullscreen';
 import Sidebar from '@/components/Sidebar';
 import ProductCard from '@/components/ProductCard';
 import CartItemComponent from '@/components/CartItem';
@@ -28,6 +29,9 @@ export default function CommandePage() {
   const [showToast, setShowToast] = useState(false);
   const [toastMessage, setToastMessage] = useState('');
   const [toastType, setToastType] = useState<'success' | 'error'>('success');
+  
+  // Activer le mode plein écran pour tablette
+  useFullscreen();
 
   useEffect(() => {
     if (categories.length > 0 && !selectedCategory) {
