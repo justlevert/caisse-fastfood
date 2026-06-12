@@ -3,6 +3,7 @@
 import { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
 import { supabase } from '@/lib/supabase';
+import { getUserPin } from '@/lib/utils/auth';
 import * as XLSX from 'xlsx';
 import TicketPreview from '@/components/TicketPreview';
 import TicketCuisinePreview from '@/components/TicketCuisinePreview';
@@ -190,7 +191,7 @@ export default function ParametresPage() {
   }, []);
 
   const checkAdminAccess = async () => {
-    const userPin = localStorage.getItem('userPin');
+    const userPin = getUserPin();
     if (!userPin) {
       router.push('/');
       return;

@@ -3,6 +3,7 @@
 import { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
 import { supabase } from '@/lib/supabase';
+import { getUserPin } from '@/lib/utils/auth';
 
 interface SessionStats {
   nombre_commandes: number;
@@ -35,7 +36,7 @@ export default function CloturePage() {
   }, []);
 
   const checkAdminAccess = async () => {
-    const userPin = localStorage.getItem('userPin');
+    const userPin = getUserPin();
     if (!userPin) {
       router.push('/');
       return;
@@ -128,7 +129,7 @@ export default function CloturePage() {
 
     try {
       // 1. Créer l'enregistrement de clôture
-      const userPin = localStorage.getItem('userPin');
+      const userPin = getUserPin();
       const { data: user } = await supabase
         .from('users')
         .select('id')

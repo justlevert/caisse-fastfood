@@ -3,6 +3,7 @@
 import { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
 import { supabase } from '@/lib/supabase';
+import { getUserPin } from '@/lib/utils/auth';
 
 interface Cloture {
   id: string;
@@ -35,7 +36,7 @@ export default function CloturesHistoriquePage() {
   }, []);
 
   const checkAdminAccess = async () => {
-    const userPin = localStorage.getItem('userPin');
+    const userPin = getUserPin();
     if (!userPin) {
       router.push('/');
       return;

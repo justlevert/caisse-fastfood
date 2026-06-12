@@ -5,6 +5,7 @@ import { useRouter } from 'next/navigation';
 import { supabase } from '@/lib/supabase';
 import { Product, Category } from '@/types/database.types';
 import ImageUploader from '@/components/ImageUploader';
+import { getUserPin } from '@/lib/utils/auth';
 
 export default function AdminProductsPage() {
   const router = useRouter();
@@ -35,7 +36,7 @@ export default function AdminProductsPage() {
   }, []);
 
   const checkAdminAccess = async () => {
-    const userPin = localStorage.getItem('userPin');
+    const userPin = getUserPin();
     if (!userPin) {
       router.push('/');
       return;

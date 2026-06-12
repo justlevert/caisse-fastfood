@@ -5,6 +5,7 @@ import { useRouter } from 'next/navigation';
 import { supabase } from '@/lib/supabase';
 import { Category } from '@/types/database.types';
 import ImageUploader from '@/components/ImageUploader';
+import { getUserPin } from '@/lib/utils/auth';
 
 export default function AdminCategoriesPage() {
   const router = useRouter();
@@ -26,13 +27,13 @@ export default function AdminCategoriesPage() {
   }, []);
 
   const checkAdminAccess = async () => {
-    const userPin = localStorage.getItem('userPin');
+    const userPin = getUserPin();
     if (!userPin) {
       router.push('/');
       return;
     }
 
-    const { data: user } = await supabase
+    const { data: user} = await supabase
       .from('users')
       .select('role')
       .eq('pin', userPin)
