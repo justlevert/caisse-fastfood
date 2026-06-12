@@ -133,7 +133,7 @@ export default function LoginPage() {
             <span className="text-4xl">🍔</span>
           </div>
           <h1 className="text-3xl sm:text-4xl font-bold bg-gradient-to-r from-blue-600 to-blue-800 bg-clip-text text-transparent mb-2">
-            Caisse Fast-Food
+            LevertOS
           </h1>
           <p className="text-gray-600 font-medium">Authentification sécurisée</p>
         </div>

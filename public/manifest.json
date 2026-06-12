@@ -1,6 +1,6 @@
 {
-  "name": "Caisse Fast-Food",
-  "short_name": "Caisse",
+  "name": "LevertOS",
+  "short_name": "LevertOS",
   "description": "Application de caisse professionnelle pour fast-food",
   "start_url": "/",
   "display": "fullscreen",

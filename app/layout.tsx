@@ -3,13 +3,13 @@ import "./globals.css";
 import { DataProvider } from "@/lib/contexts/DataContext";
 
 export const metadata: Metadata = {
-  title: "Caisse Fast-Food",
+  title: "LevertOS",
   description: "Application de caisse professionnelle pour fast-food",
   manifest: "/manifest.json",
   appleWebApp: {
     capable: true,
     statusBarStyle: "black-translucent",
-    title: "Caisse Fast-Food",
+    title: "LevertOS",
   },
   viewport: {
     width: "device-width",
