@@ -41,7 +41,6 @@ export default function MobileFacturesPage() {
       try {
         const { getOpenAIApiKeyAsync } = await import('@/lib/services/aiOcrService');
         const key = await getOpenAIApiKeyAsync();
-        console.log('🔑 Clé API chargée:', key ? 'Présente' : 'Absente');
         setHasApiKey(!!key);
       } catch (error) {
         console.error('❌ Erreur chargement clé API:', error);

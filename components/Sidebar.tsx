@@ -26,8 +26,8 @@ export default function Sidebar({ isOpen, onClose }: SidebarProps) {
   }, [isOpen]);
 
   const loadUserInfo = async () => {
-    const userPin = localStorage.getItem('userPin');
-    console.log('📌 PIN récupéré:', userPin);
+    const { getSecureItem } = await import('@/lib/services/securityService');
+    const userPin = getSecureItem('userPin');
     if (!userPin) return;
 
     const { data: user, error } = await supabase
@@ -36,15 +36,7 @@ export default function Sidebar({ isOpen, onClose }: SidebarProps) {
       .eq('pin', userPin)
       .single();
 
-    console.log('📌 Données utilisateur:', user);
-    console.log('📌 Erreur:', error);
-
     if (user) {
-      console.log('📌 Nom:', user.nom);
-      console.log('📌 Rôle:', user.role);
-      console.log('📌 Rôle === "administrateur":', user.role === 'administrateur');
-      console.log('📌 Type du rôle:', typeof user.role);
-      console.log('📌 Longueur du rôle:', user.role?.length);
       
       setUserName(user.nom);
       setUserRole(user.role);

@@ -3,11 +3,19 @@
 import { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
 import { supabase } from '@/lib/supabase';
+import { 
+  setSecureItem, 
+  recordFailedAttempt, 
+  resetLoginAttempts, 
+  getRemainingLockoutTime,
+  getFailedAttempts 
+} from '@/lib/services/securityService';
 
 export default function LoginPage() {
   const [pin, setPin] = useState('');
   const [error, setError] = useState('');
   const [loading, setLoading] = useState(false);
+  const [lockoutTime, setLockoutTime] = useState(0);
   const router = useRouter();
 
   const handleNumberClick = (num: string) => {
@@ -27,16 +35,46 @@ export default function LoginPage() {
     setError('');
   };
 
+  // Vérifier le verrouillage au chargement
+  useEffect(() => {
+    const remaining = getRemainingLockoutTime();
+    if (remaining > 0) {
+      setLockoutTime(remaining);
+      setError(`Trop de tentatives. Réessayez dans ${remaining}s`);
+      
+      const interval = setInterval(() => {
+        const newRemaining = getRemainingLockoutTime();
+        setLockoutTime(newRemaining);
+        if (newRemaining > 0) {
+          setError(`Trop de tentatives. Réessayez dans ${newRemaining}s`);
+        } else {
+          setError('');
+          clearInterval(interval);
+        }
+      }, 1000);
+      
+      return () => clearInterval(interval);
+    }
+  }, []);
+
   // Auto-submit quand 4 chiffres sont saisis
   useEffect(() => {
-    if (pin.length === 4 && !loading) {
+    if (pin.length === 4 && !loading && lockoutTime === 0) {
       handleLogin();
     }
-  }, [pin]);
+  }, [pin, loading, lockoutTime]);
 
   const handleLogin = async () => {
     if (pin.length !== 4) {
       setError('Le code PIN doit contenir 4 chiffres');
+      return;
+    }
+
+    // Vérifier le verrouillage
+    const remaining = getRemainingLockoutTime();
+    if (remaining > 0) {
+      setError(`Compte verrouillé. Réessayez dans ${remaining}s`);
+      setPin('');
       return;
     }
 
@@ -52,20 +90,36 @@ export default function LoginPage() {
         .single();
 
       if (dbError || !user) {
-        setError('Code PIN incorrect');
-        setPin(''); // Effacer le PIN en cas d'erreur
+        // Enregistrer tentative échouée
+        const isLocked = recordFailedAttempt();
+        const attempts = getFailedAttempts();
+        
+        if (isLocked) {
+          const lockTime = getRemainingLockoutTime();
+          setLockoutTime(lockTime);
+          setError(`Trop de tentatives. Compte verrouillé pour ${lockTime}s`);
+        } else {
+          setError(`Code PIN incorrect (${attempts}/5 tentatives)`);
+        }
+        
+        setPin('');
         setLoading(false);
         return;
       }
 
-      // Sauvegarder le PIN dans localStorage
-      localStorage.setItem('userPin', pin);
+      // Connexion réussie - réinitialiser les tentatives
+      resetLoginAttempts();
+      
+      // Sauvegarder le PIN de manière sécurisée (chiffré)
+      setSecureItem('userPin', pin);
+      setSecureItem('userId', user.id);
+      setSecureItem('userRole', user.role || 'user');
       
       // Rediriger vers la page de commande
       router.push('/commande');
     } catch (err) {
       setError('Erreur de connexion');
-      setPin(''); // Effacer le PIN en cas d'erreur
+      setPin('');
       setLoading(false);
     }
   };

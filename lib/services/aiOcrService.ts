@@ -76,20 +76,22 @@ export async function getOpenAIApiKeyAsync(): Promise<string | null> {
     console.warn('Impossible de récupérer la clé depuis Supabase, fallback localStorage');
   }
 
-  // Fallback sur localStorage
+  // Fallback sur localStorage sécurisé
   if (typeof window !== 'undefined') {
-    return localStorage.getItem('openai_api_key') || null;
+    const { getSecureItem } = await import('./securityService');
+    return getSecureItem('openai_api_key');
   }
   
   return null;
 }
 
 /**
- * Version synchrone pour compatibilité (utilise uniquement localStorage)
+ * Version synchrone pour compatibilité (utilise uniquement localStorage chiffré)
  * @deprecated Utiliser getOpenAIApiKeyAsync() pour accès Supabase
  */
 export function getOpenAIApiKey(): string | null {
   if (typeof window === 'undefined') return null;
+  // Fallback non sécurisé pour compatibilité - utiliser getOpenAIApiKeyAsync()
   return localStorage.getItem('openai_api_key') || null;
 }
 
@@ -97,9 +99,10 @@ export function getOpenAIApiKey(): string | null {
  * Sauvegarde la clé API OpenAI dans Supabase ET localStorage
  */
 export async function setOpenAIApiKey(key: string): Promise<boolean> {
-  // Sauvegarder dans localStorage pour fallback immédiat
+  // Sauvegarder dans localStorage de manière sécurisée (chiffré)
   if (typeof window !== 'undefined') {
-    localStorage.setItem('openai_api_key', key);
+    const { setSecureItem } = await import('./securityService');
+    setSecureItem('openai_api_key', key);
   }
 
   // Sauvegarder dans Supabase pour synchronisation
@@ -116,9 +119,10 @@ export async function setOpenAIApiKey(key: string): Promise<boolean> {
  * Supprime la clé API OpenAI de Supabase ET localStorage
  */
 export async function removeOpenAIApiKey(): Promise<boolean> {
-  // Supprimer de localStorage
+  // Supprimer de localStorage sécurisé
   if (typeof window !== 'undefined') {
-    localStorage.removeItem('openai_api_key');
+    const { removeSecureItem } = await import('./securityService');
+    removeSecureItem('openai_api_key');
   }
 
   // Supprimer de Supabase

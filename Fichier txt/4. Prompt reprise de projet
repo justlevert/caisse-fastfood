@@ -1,6 +1,0 @@
-On reprend le projet.
-Analyse d’abord le code existant avant de proposer des modifications.
-Ne modifie rien d’existant sans validation explicite.
-Respecte strictement le PRD et le master prompt.
-Travaille uniquement sur la tâche que je demande.
-Si une modification impacte Supabase, les types TypeScript, les variables globales, les fonctions existantes ou la structure du projet, demande confirmation avant d’agir.
