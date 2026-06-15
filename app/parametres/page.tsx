@@ -1097,13 +1097,13 @@ export default function ParametresPage() {
             <div className="space-y-8">
               {/* Serveur d'impression (pour iPad/tablettes) */}
               <div className="border-2 border-blue-300 rounded-2xl p-6 bg-blue-50">
-                <h3 className="text-xl font-bold text-gray-800 mb-4">🌐 Serveur d'impression (iPad/Tablettes)</h3>
+                <h3 className="text-xl font-bold text-gray-800 mb-4">🌐 Serveur d&apos;impression (iPad/Tablettes)</h3>
                 <p className="text-sm text-gray-600 mb-4">
-                  Si vous utilisez l'application depuis un iPad ou une tablette, vous devez configurer un serveur d'impression sur un ordinateur du réseau local.
+                  Si vous utilisez l&apos;application depuis un iPad ou une tablette, vous devez configurer un serveur d&apos;impression sur un ordinateur du réseau local.
                 </p>
                 <div>
                   <label className="block text-lg font-semibold text-gray-700 mb-2">
-                    URL du serveur d'impression
+                    URL du serveur d&apos;impression
                   </label>
                   <input
                     type="text"
@@ -1113,7 +1113,7 @@ export default function ParametresPage() {
                     placeholder="http://192.168.1.100:3001"
                   />
                   <p className="text-xs text-gray-500 mt-2">
-                    💡 Exemple: http://192.168.1.100:3001 (IP de l'ordinateur qui exécute le serveur d'impression)
+                    💡 Exemple: http://192.168.1.100:3001 (IP de l&apos;ordinateur qui exécute le serveur d&apos;impression)
                   </p>
                   <p className="text-xs text-gray-500 mt-1">
                     📖 Voir le dossier <code className="bg-gray-200 px-2 py-1 rounded">print-server/</code> pour installer le serveur
