@@ -3,6 +3,7 @@
 import { useState, useEffect, Suspense } from 'react';
 import { useRouter, useSearchParams } from 'next/navigation';
 import { supabase } from '@/lib/supabase';
+import { useCurrency } from '@/lib/utils/currency';
 import { Order, OrderItem, Product } from '@/types/database.types';
 
 interface OrderWithItems extends Order {
@@ -12,6 +13,7 @@ interface OrderWithItems extends Order {
 function HistoriqueContent() {
   const router = useRouter();
   const searchParams = useSearchParams();
+  const { symbol: currencySymbol } = useCurrency();
   const [orders, setOrders] = useState<OrderWithItems[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [selectedOrder, setSelectedOrder] = useState<OrderWithItems | null>(null);
@@ -276,7 +278,7 @@ function HistoriqueContent() {
                       {order.paiement === 'especes' ? 'Espèces' : 'Carte'}
                     </td>
                     <td className="px-6 py-4 text-sm font-semibold text-gray-900">
-                      {order.total.toFixed(2)} €
+                      {order.total.toFixed(2)} {currencySymbol}
                     </td>
                     <td className="px-6 py-4">{getStatutBadge(order.statut)}</td>
                     <td className="px-6 py-4 text-right">
@@ -388,11 +390,11 @@ function HistoriqueContent() {
                           </div>
                         )}
                         <p className="text-sm text-gray-500 mt-1">
-                          {item.prix_unitaire.toFixed(2)} € × {item.quantite}
+                          {item.prix_unitaire.toFixed(2)} {currencySymbol} × {item.quantite}
                         </p>
                       </div>
                       <p className="font-bold text-gray-800">
-                        {(item.prix_unitaire * item.quantite).toFixed(2)} €
+                        {(item.prix_unitaire * item.quantite).toFixed(2)} {currencySymbol}
                       </p>
                     </div>
                   </div>
@@ -404,7 +406,7 @@ function HistoriqueContent() {
               <div className="flex justify-between items-center">
                 <span className="text-lg font-bold text-gray-700">Total</span>
                 <span className="text-2xl font-bold text-primary-500">
-                  {selectedOrder.total.toFixed(2)} €
+                  {selectedOrder.total.toFixed(2)} {currencySymbol}
                 </span>
               </div>
             </div>

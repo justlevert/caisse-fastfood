@@ -3,6 +3,7 @@
 import React from 'react';
 import Image from 'next/image';
 import { Product } from '@/types/database.types';
+import { useCurrency } from '@/lib/utils/currency';
 
 interface ProductCardProps {
   product: Product;
@@ -10,6 +11,8 @@ interface ProductCardProps {
 }
 
 const ProductCard = React.memo(({ product, onClick }: ProductCardProps) => {
+  const { symbol: currencySymbol } = useCurrency();
+  
   return (
     <button
       onClick={() => onClick(product)}
@@ -34,7 +37,7 @@ const ProductCard = React.memo(({ product, onClick }: ProductCardProps) => {
       </h3>
       <div className="flex justify-center">
         <span className="inline-block bg-orange-100 text-orange-600 font-bold px-3 py-1.5 sm:px-4 sm:py-2 rounded-full text-xs sm:text-sm lg:text-base">
-          {product.prix.toFixed(2)} €
+          {product.prix.toFixed(2)} {currencySymbol}
         </span>
       </div>
     </button>

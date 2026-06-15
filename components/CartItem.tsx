@@ -2,6 +2,7 @@
 
 import React, { useMemo } from 'react';
 import { CartItem as CartItemType } from '@/types/database.types';
+import { useCurrency } from '@/lib/utils/currency';
 
 interface CartItemProps {
   item: CartItemType;
@@ -12,6 +13,8 @@ interface CartItemProps {
 }
 
 const CartItem = React.memo(({ item, index, onUpdateQuantity, onRemove, onEdit }: CartItemProps) => {
+  const { symbol: currencySymbol } = useCurrency();
+  
   const itemPrice = useMemo(() => {
     return item.customization
       ? item.customization.taille.prix +
@@ -46,7 +49,7 @@ const CartItem = React.memo(({ item, index, onUpdateQuantity, onRemove, onEdit }
             </div>
           )}
           <p className="text-xs lg:text-sm text-gray-500 mt-2">
-            {itemPrice.toFixed(2)} € × {item.quantite}
+            {itemPrice.toFixed(2)} {currencySymbol} × {item.quantite}
           </p>
         </div>
         <div className="flex flex-col items-end gap-2 ml-3">
@@ -68,7 +71,7 @@ const CartItem = React.memo(({ item, index, onUpdateQuantity, onRemove, onEdit }
             </button>
           </div>
           <p className="font-bold text-orange-600 text-base lg:text-lg">
-            {totalPrice.toFixed(2)} €
+            {totalPrice.toFixed(2)} {currencySymbol}
           </p>
         </div>
       </div>

@@ -3,6 +3,8 @@
 import React, { useState, useMemo } from 'react';
 import { CartItem } from '@/types/database.types';
 import { useOptimisticOrder } from '@/lib/hooks/useOptimisticOrder';
+import { useCurrency } from '@/lib/utils/currency';
+import { supabase } from '@/lib/supabase';
 
 interface ValidationModalProps {
   mode: 'sur_place' | 'a_emporter';
@@ -22,13 +24,79 @@ const ValidationModal = React.memo(({
   onShowToast,
 }: ValidationModalProps) => {
   const { submitOrder } = useOptimisticOrder();
+  const { symbol: currencySymbol } = useCurrency();
   const [buzzer, setBuzzer] = useState<number | null>(null);
   const [paiement, setPaiement] = useState<'especes' | 'carte' | null>(null);
   const [montantRecu, setMontantRecu] = useState<string>('');
+  const [remarque, setRemarque] = useState<string>('');
 
   const renduMonnaie = useMemo(() => {
     return montantRecu ? parseFloat(montantRecu) - total : 0;
   }, [montantRecu, total]);
+
+  // Impression best-effort du ticket cuisine (avec la remarque)
+  const printCuisineTicket = async (numeroCommande: string) => {
+    try {
+      const { data } = await supabase
+        .from('settings')
+        .select('value')
+        .eq('key', 'imprimantes_config')
+        .single();
+      if (!data?.value) return;
+
+      const printers = JSON.parse(data.value);
+      const cuisine = printers?.cuisine;
+      if (!cuisine || cuisine.statut !== 'active' || !cuisine.ip) return;
+
+      const produits = cart.map((item) => {
+        const c = item.customization;
+        const options: string[] = [];
+        const supplements: string[] = [];
+        const ingredients_retires: string[] = [];
+        if (c) {
+          if (c.taille) options.push(`Taille: ${c.taille.nom}`);
+          if (c.viandes?.length) options.push(`Viandes: ${c.viandes.map((v) => v.nom).join(', ')}`);
+          if (c.sauces?.length) options.push(`Sauces: ${c.sauces.map((s) => s.nom).join(', ')}`);
+          if (c.gratin) options.push(`Gratin: ${c.gratin.nom}`);
+          c.extras?.forEach((e) => supplements.push(e.nom));
+          c.retraits?.forEach((r) => ingredients_retires.push(r.nom));
+        }
+        const itemPrice = c
+          ? c.taille.prix + c.extras.reduce((sum, e) => sum + e.prix, 0) + (c.gratin?.prix || 0)
+          : item.product.prix;
+        return {
+          nom: item.product.nom,
+          quantite: item.quantite,
+          prix: itemPrice * item.quantite,
+          options,
+          supplements,
+          ingredients_retires,
+        };
+      });
+
+      const commande = {
+        numero_commande: numeroCommande,
+        date: new Date(),
+        caissier: '',
+        mode_consommation: mode,
+        buzzer: buzzer ?? undefined,
+        remarque: remarque.trim() || undefined,
+        produits,
+        sous_total: total,
+        tva: 0,
+        total,
+        paiement: paiement || '',
+      };
+
+      await fetch('/api/printer/print-commande', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ ip: cuisine.ip, port: cuisine.port, type: 'cuisine', commande }),
+      });
+    } catch (e) {
+      console.error('Impression ticket cuisine échouée:', e);
+    }
+  };
 
   const handleValidate = async () => {
     if (!paiement) {
@@ -56,6 +124,8 @@ const ValidationModal = React.memo(({
     // Afficher toast de confirmation/erreur
     if (result.success) {
       onShowToast('✅ Commande enregistrée avec succès !', 'success');
+      // Impression du ticket cuisine (avec remarque) si imprimante configurée
+      printCuisineTicket(result.orderId ? `#${result.orderId.slice(0, 8)}` : '#----');
     } else {
       onShowToast(`❌ Erreur : ${result.error}`, 'error');
     }
@@ -78,7 +148,7 @@ const ValidationModal = React.memo(({
           {/* Résumé */}
           <div className="bg-gray-50 rounded-xl sm:rounded-2xl p-3 sm:p-4">
             <p className="text-xs sm:text-sm text-gray-600 mb-2">Mode : <span className="font-semibold">{mode === 'sur_place' ? 'Sur Place' : 'À Emporter'}</span></p>
-            <p className="text-xl sm:text-2xl font-bold text-primary-500">Total : {total.toFixed(2)} €</p>
+            <p className="text-xl sm:text-2xl font-bold text-primary-500">Total : {total.toFixed(2)} {currencySymbol}</p>
           </div>
 
           {/* Buzzer */}
@@ -101,6 +171,22 @@ const ValidationModal = React.memo(({
                 </button>
               ))}
             </div>
+          </div>
+
+          {/* Remarque cuisine */}
+          <div>
+            <label className="block text-xs sm:text-sm font-semibold text-gray-700 mb-2 sm:mb-3">
+              Remarque pour la cuisine (optionnel)
+            </label>
+            <textarea
+              value={remarque}
+              onChange={(e) => setRemarque(e.target.value)}
+              rows={2}
+              maxLength={200}
+              placeholder="Ex: Sans oignon, bien cuit, allergie arachides..."
+              className="w-full px-4 py-3 text-base border-2 border-gray-200 rounded-xl focus:border-orange-500 focus:outline-none resize-none"
+            />
+            <p className="text-xs text-gray-400 mt-1 text-right">{remarque.length}/200</p>
           </div>
 
           {/* Mode de paiement */}
@@ -150,7 +236,7 @@ const ValidationModal = React.memo(({
                 <div className="mt-2 sm:mt-3 p-3 sm:p-4 bg-green-50 rounded-xl sm:rounded-2xl border-2 border-green-200">
                   <p className="text-xs sm:text-sm text-gray-600">Rendu monnaie</p>
                   <p className="text-xl sm:text-2xl font-bold text-green-600">
-                    {renduMonnaie.toFixed(2)} €
+                    {renduMonnaie.toFixed(2)} {currencySymbol}
                   </p>
                 </div>
               )}

@@ -121,6 +121,12 @@ export default function TicketCuisinePreview({ config }: TicketCuisinePreviewPro
           )}
         </div>
 
+        {/* Remarque (exemple) */}
+        <div className="mb-3">
+          <div className={`${textSize} font-bold`}>*** REMARQUE ***</div>
+          <div className={`${textSize} font-bold`}>Sans oignon, bien cuit</div>
+        </div>
+
         <div className={`text-sm text-gray-600 mb-3`}>{separatorLine}</div>
 
         {/* Produits groupés par catégorie */}

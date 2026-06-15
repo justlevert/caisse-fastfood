@@ -4,11 +4,13 @@ import { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
 import { supabase } from '@/lib/supabase';
 import { Product, Category } from '@/types/database.types';
+import { useAppData } from '@/lib/contexts/DataContext';
 import ImageUploader from '@/components/ImageUploader';
 import { getUserPin } from '@/lib/utils/auth';
 
 export default function AdminProductsPage() {
   const router = useRouter();
+  const { refreshData } = useAppData();
   const [products, setProducts] = useState<Product[]>([]);
   const [categories, setCategories] = useState<Category[]>([]);
   const [isLoading, setIsLoading] = useState(true);
@@ -95,7 +97,8 @@ export default function AdminProductsPage() {
 
       if (!error) {
         showSuccess('✅ Produit modifié avec succès');
-        loadData();
+        await loadData();
+        await refreshData(); // Rafraîchir le cache global
         closeModal();
       } else {
         showError('❌ Erreur lors de la modification');
@@ -105,7 +108,8 @@ export default function AdminProductsPage() {
 
       if (!error) {
         showSuccess('✅ Produit ajouté avec succès');
-        loadData();
+        await loadData();
+        await refreshData(); // Rafraîchir le cache global
         closeModal();
       } else {
         showError('❌ Erreur lors de l\'ajout');
@@ -128,7 +132,8 @@ export default function AdminProductsPage() {
 
     if (!error) {
       showSuccess('✅ Produit supprimé');
-      loadData();
+      await loadData();
+      await refreshData(); // Rafraîchir le cache global
       setShowDeleteModal(false);
       setDeletingProduct(null);
     } else {

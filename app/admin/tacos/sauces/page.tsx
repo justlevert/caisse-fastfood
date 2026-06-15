@@ -3,6 +3,7 @@
 import { useState, useEffect } from 'react';
 import { supabase } from '@/lib/supabase';
 import { TacoSauce } from '@/types/database.types';
+import ImageUploader from '@/components/ImageUploader';
 
 export default function AdminTacoSaucesPage() {
   const [sauces, setSauces] = useState<TacoSauce[]>([]);
@@ -198,14 +199,12 @@ export default function AdminTacoSaucesPage() {
               </div>
               <div>
                 <label className="block text-sm font-semibold text-gray-700 mb-2">
-                  Image URL (optionnel)
+                  Image de la sauce
                 </label>
-                <input
-                  type="text"
-                  value={formData.image_url}
-                  onChange={(e) => setFormData({ ...formData, image_url: e.target.value })}
-                  className="w-full px-4 py-3 border-2 border-gray-300 rounded-2xl focus:border-primary-500 focus:outline-none"
-                  placeholder="https://..."
+                <ImageUploader
+                  currentImageUrl={formData.image_url}
+                  onImageUploaded={(url) => setFormData({ ...formData, image_url: url })}
+                  onImageUrlChange={(url) => setFormData({ ...formData, image_url: url })}
                 />
               </div>
               <div className="flex items-center">

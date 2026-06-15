@@ -27,6 +27,7 @@ interface PrinterConfig {
 interface PrintersConfig {
   caisse: PrinterConfig;
   cuisine: PrinterConfig;
+  print_server_url?: string;
 }
 
 interface TicketConfig {
@@ -128,11 +129,19 @@ export default function ParametresPage() {
   const [tvaSurPlace, setTvaSurPlace] = useState('10.0');
   const [tvaEmporter, setTvaEmporter] = useState('5.5');
   const [timerVerrouillage, setTimerVerrouillage] = useState('300');
+  const [devise, setDevise] = useState<'EUR' | 'CHF'>('EUR');
+
+  // État pour le logo de l'application
+  const [appLogoConfig, setAppLogoConfig] = useState<{ actif: boolean; url: string }>({
+    actif: false,
+    url: '',
+  });
   
   // États pour les imprimantes
   const [printersConfig, setPrintersConfig] = useState<PrintersConfig>({
     caisse: { nom: 'Imprimante Caisse', ip: '', port: 9100, statut: 'inactive', type_ticket: 'standard' },
-    cuisine: { nom: 'Imprimante Cuisine', ip: '', port: 9100, statut: 'inactive', type_ticket: 'preparation' }
+    cuisine: { nom: 'Imprimante Cuisine', ip: '', port: 9100, statut: 'inactive', type_ticket: 'preparation' },
+    print_server_url: ''
   });
   const [testingPrinter, setTestingPrinter] = useState<string | null>(null);
 
@@ -228,6 +237,14 @@ export default function ParametresPage() {
             case 'timer_verrouillage':
               setTimerVerrouillage(setting.value);
               break;
+            case 'app_logo_config':
+              try {
+                const config = JSON.parse(setting.value);
+                setAppLogoConfig(config);
+              } catch (e) {
+                console.error('Erreur parsing config logo app:', e);
+              }
+              break;
             case 'imprimantes_config':
               try {
                 const config = JSON.parse(setting.value);
@@ -251,6 +268,9 @@ export default function ParametresPage() {
               } catch (e) {
                 console.error('Erreur parsing config tickets cuisine:', e);
               }
+              break;
+            case 'devise':
+              setDevise(setting.value as 'EUR' | 'CHF');
               break;
           }
         });
@@ -279,7 +299,8 @@ export default function ParametresPage() {
     try {
       await updateSetting('tva_sur_place', tvaSurPlace);
       await updateSetting('tva_a_emporter', tvaEmporter);
-      setSuccessMessage('Configuration TVA enregistrée avec succès !');
+      await updateSetting('devise', devise);
+      setSuccessMessage('Configuration TVA et devise enregistrée avec succès !');
     } catch (error) {
       setErrorMessage('Erreur lors de l\'enregistrement de la TVA');
       console.error(error);
@@ -302,6 +323,50 @@ export default function ParametresPage() {
     } finally {
       setSaving(false);
     }
+  };
+
+  const handleSaveLogo = async () => {
+    setSaving(true);
+    setErrorMessage('');
+    setSuccessMessage('');
+
+    try {
+      const configJson = JSON.stringify(appLogoConfig);
+      const { error } = await supabase
+        .from('settings')
+        .upsert(
+          { key: 'app_logo_config', value: configJson, description: 'Logo de l\'application (page de connexion)', updated_at: new Date().toISOString() },
+          { onConflict: 'key' }
+        );
+      if (error) throw error;
+      setSuccessMessage('Configuration du logo enregistrée avec succès !');
+    } catch (error) {
+      setErrorMessage('Erreur lors de l\'enregistrement du logo');
+      console.error(error);
+    } finally {
+      setSaving(false);
+    }
+  };
+
+  const handleLogoFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+
+    if (!file.type.startsWith('image/')) {
+      setErrorMessage('Veuillez sélectionner un fichier image');
+      return;
+    }
+
+    if (file.size > 1024 * 1024) {
+      setErrorMessage('L\'image ne doit pas dépasser 1 Mo');
+      return;
+    }
+
+    const reader = new FileReader();
+    reader.onload = () => {
+      setAppLogoConfig(prev => ({ ...prev, url: reader.result as string }));
+    };
+    reader.readAsDataURL(file);
   };
 
   const handleSaveImprimantes = async () => {
@@ -375,27 +440,26 @@ export default function ParametresPage() {
 
     setTestingPrinter(type);
     setErrorMessage('');
-    setSuccessMessage(`Test de connexion à l&apos;imprimante ${type} (${printer.ip}:${printer.port})...`);
+    
+    const useRemoteServer = printersConfig.print_server_url && printersConfig.print_server_url.trim() !== '';
+    
+    if (useRemoteServer) {
+      setSuccessMessage(`📱 Test de connexion via serveur distant (${printersConfig.print_server_url})...`);
+    } else {
+      setSuccessMessage(`Test de connexion à l&apos;imprimante ${type} (${printer.ip}:${printer.port})...`);
+    }
     
     try {
-      const response = await fetch('/api/printer/test', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          ip: printer.ip,
-          port: printer.port,
-        }),
-      });
+      const { testPrinterConnection } = await import('@/lib/services/unifiedPrintService');
+      const result = await testPrinterConnection(type);
 
-      const data = await response.json();
-
-      if (data.success) {
-        setSuccessMessage(`✅ ${data.message}`);
+      if (result.success) {
+        setSuccessMessage(`✅ ${result.message}`);
       } else {
-        setErrorMessage(`❌ ${data.message}`);
+        setErrorMessage(`❌ ${result.message}`);
       }
-    } catch (error) {
-      setErrorMessage(`❌ Erreur lors du test de connexion`);
+    } catch (error: any) {
+      setErrorMessage(`❌ Erreur: ${error.message || 'Erreur inconnue'}`);
       console.error('Erreur test imprimante:', error);
     } finally {
       setTestingPrinter(null);
@@ -416,29 +480,26 @@ export default function ParametresPage() {
     }
 
     setErrorMessage('');
-    setSuccessMessage(`🖨️ Impression d&apos;un ticket de test sur l&apos;imprimante ${type}...`);
+    
+    const useRemoteServer = printersConfig.print_server_url && printersConfig.print_server_url.trim() !== '';
+    
+    if (useRemoteServer) {
+      setSuccessMessage(`📱 Impression via serveur distant (${printersConfig.print_server_url})...`);
+    } else {
+      setSuccessMessage(`🖨️ Impression d&apos;un ticket de test sur l&apos;imprimante ${type}...`);
+    }
     
     try {
-      const response = await fetch('/api/printer/print', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          ip: printer.ip,
-          port: printer.port,
-          type: type,
-          nom: printer.nom,
-        }),
-      });
+      const { printTestTicket } = await import('@/lib/services/unifiedPrintService');
+      const result = await printTestTicket(type);
 
-      const data = await response.json();
-
-      if (data.success) {
-        setSuccessMessage(`✅ ${data.message}`);
+      if (result.success) {
+        setSuccessMessage(`✅ ${result.message}`);
       } else {
-        setErrorMessage(`❌ ${data.message}`);
+        setErrorMessage(`❌ ${result.message}`);
       }
-    } catch (error) {
-      setErrorMessage(`❌ Erreur lors de l'impression`);
+    } catch (error: any) {
+      setErrorMessage(`❌ Erreur: ${error.message || 'Erreur inconnue'}`);
       console.error('Erreur impression:', error);
     }
   };
@@ -674,6 +735,7 @@ export default function ParametresPage() {
         <div className="flex gap-2 overflow-x-auto pb-2">
           {[
             { id: 'tva', label: '💰 TVA', icon: '💰' },
+            { id: 'logo', label: '🖼️ Logo App', icon: '🖼️' },
             { id: 'password', label: '🔐 Mot de passe', icon: '🔐' },
             { id: 'timer', label: '⏱️ Verrouillage', icon: '⏱️' },
             { id: 'export', label: '📊 Export', icon: '📊' },
@@ -733,12 +795,127 @@ export default function ParametresPage() {
                 />
               </div>
 
+              <div>
+                <label className="block text-lg font-semibold text-gray-700 mb-2">
+                  Devise
+                </label>
+                <div className="grid grid-cols-2 gap-4">
+                  <button
+                    type="button"
+                    onClick={() => setDevise('EUR')}
+                    className={`py-4 px-6 text-xl font-bold rounded-2xl border-2 transition-all ${
+                      devise === 'EUR'
+                        ? 'bg-orange-500 text-white border-orange-600 shadow-lg'
+                        : 'bg-white text-gray-700 border-gray-300 hover:border-orange-400'
+                    }`}
+                  >
+                    💶 Euro (EUR)
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => setDevise('CHF')}
+                    className={`py-4 px-6 text-xl font-bold rounded-2xl border-2 transition-all ${
+                      devise === 'CHF'
+                        ? 'bg-orange-500 text-white border-orange-600 shadow-lg'
+                        : 'bg-white text-gray-700 border-gray-300 hover:border-orange-400'
+                    }`}
+                  >
+                    🇨🇭 Franc Suisse (CHF)
+                  </button>
+                </div>
+                <p className="text-sm text-gray-500 mt-2">
+                  Symbole affiché : {devise === 'EUR' ? '€' : 'CHF'}
+                </p>
+              </div>
+
               <button
                 onClick={handleSaveTVA}
                 disabled={saving}
                 className="w-full py-5 bg-gradient-to-br from-orange-500 to-orange-600 hover:from-orange-600 hover:to-orange-700 disabled:from-gray-300 disabled:to-gray-400 text-white font-bold text-xl rounded-2xl shadow-lg transition-all"
               >
-                {saving ? 'Enregistrement...' : 'Enregistrer la TVA'}
+                {saving ? 'Enregistrement...' : 'Enregistrer TVA et Devise'}
+              </button>
+            </div>
+          </div>
+        )}
+
+        {/* Section Logo App */}
+        {activeSection === 'logo' && (
+          <div className="bg-white rounded-2xl shadow-lg p-8 border-2 border-gray-200">
+            <h2 className="text-2xl font-bold text-gray-800 mb-6">🖼️ Logo de l&apos;application</h2>
+            <p className="text-gray-500 mb-6">Ce logo s&apos;affiche sur la page de connexion à la place de l&apos;icône par défaut.</p>
+
+            <div className="space-y-6">
+              {/* Activation */}
+              <div className="flex items-center justify-between bg-gray-50 rounded-2xl p-4 border-2 border-gray-200">
+                <div>
+                  <p className="text-lg font-bold text-gray-800">Activer le logo personnalisé</p>
+                  <p className="text-sm text-gray-500">Si désactivé, l&apos;icône par défaut 🍔 est utilisée</p>
+                </div>
+                <label className="flex items-center cursor-pointer">
+                  <input
+                    type="checkbox"
+                    checked={appLogoConfig.actif}
+                    onChange={(e) => setAppLogoConfig(prev => ({ ...prev, actif: e.target.checked }))}
+                    className="sr-only peer"
+                  />
+                  <div className="relative w-14 h-8 bg-gray-300 peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[4px] after:left-[4px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-6 after:w-6 after:transition-all peer-checked:bg-orange-500"></div>
+                </label>
+              </div>
+
+              {appLogoConfig.actif && (
+                <>
+                  {/* URL */}
+                  <div>
+                    <label className="block text-lg font-semibold text-gray-700 mb-2">
+                      URL du logo
+                    </label>
+                    <input
+                      type="text"
+                      value={appLogoConfig.url.startsWith('data:') ? '' : appLogoConfig.url}
+                      onChange={(e) => setAppLogoConfig(prev => ({ ...prev, url: e.target.value }))}
+                      placeholder="https://exemple.com/logo.png"
+                      className="w-full px-6 py-4 text-lg border-2 border-gray-300 rounded-2xl focus:border-orange-500 focus:outline-none"
+                    />
+                  </div>
+
+                  {/* Upload fichier */}
+                  <div>
+                    <label className="block text-lg font-semibold text-gray-700 mb-2">
+                      Ou importer une image (max 1 Mo)
+                    </label>
+                    <input
+                      type="file"
+                      accept="image/*"
+                      onChange={handleLogoFileChange}
+                      className="w-full px-6 py-4 text-base border-2 border-gray-300 rounded-2xl focus:border-orange-500 focus:outline-none file:mr-4 file:py-2 file:px-4 file:rounded-xl file:border-0 file:bg-orange-500 file:text-white file:font-semibold file:cursor-pointer hover:file:bg-orange-600"
+                    />
+                  </div>
+
+                  {/* Aperçu */}
+                  {appLogoConfig.url && (
+                    <div className="flex flex-col items-center gap-3 bg-gray-50 rounded-2xl p-6 border-2 border-gray-200">
+                      <p className="text-sm font-semibold text-gray-600 uppercase tracking-wide">Aperçu</p>
+                      <div className="w-24 h-24 rounded-3xl overflow-hidden bg-white border-2 border-gray-200 flex items-center justify-center">
+                        <img src={appLogoConfig.url} alt="Aperçu logo" className="w-full h-full object-contain" />
+                      </div>
+                      <button
+                        onClick={() => setAppLogoConfig(prev => ({ ...prev, url: '' }))}
+                        className="text-sm text-red-600 font-semibold hover:underline"
+                      >
+                        Supprimer l&apos;image
+                      </button>
+                    </div>
+                  )}
+                </>
+              )}
+
+              <button
+                onClick={handleSaveLogo}
+                disabled={saving}
+                className="w-full py-5 bg-gradient-to-br from-orange-500 to-orange-600 hover:from-orange-600 hover:to-orange-700 disabled:from-gray-300 disabled:to-gray-400 text-white font-bold text-xl rounded-2xl shadow-lg transition-all"
+              >
+                {saving ? 'Enregistrement...' : '💾 Enregistrer le logo'}
               </button>
             </div>
           </div>
@@ -918,6 +1095,57 @@ export default function ParametresPage() {
             <h2 className="text-2xl font-bold text-gray-800 mb-6">🖨️ Configuration des imprimantes thermiques WiFi 80mm</h2>
             
             <div className="space-y-8">
+              {/* Serveur d'impression (pour iPad/tablettes) */}
+              <div className="border-2 border-blue-300 rounded-2xl p-6 bg-blue-50">
+                <h3 className="text-xl font-bold text-gray-800 mb-4">🌐 Serveur d'impression (iPad/Tablettes)</h3>
+                <p className="text-sm text-gray-600 mb-4">
+                  Si vous utilisez l'application depuis un iPad ou une tablette, vous devez configurer un serveur d'impression sur un ordinateur du réseau local.
+                </p>
+                <div>
+                  <label className="block text-lg font-semibold text-gray-700 mb-2">
+                    URL du serveur d'impression
+                  </label>
+                  <input
+                    type="text"
+                    value={printersConfig.print_server_url || ''}
+                    onChange={(e) => setPrintersConfig(prev => ({ ...prev, print_server_url: e.target.value }))}
+                    className="w-full px-6 py-4 text-xl border-2 border-gray-300 rounded-2xl focus:border-blue-500 focus:outline-none bg-white"
+                    placeholder="http://192.168.1.100:3001"
+                  />
+                  <p className="text-xs text-gray-500 mt-2">
+                    💡 Exemple: http://192.168.1.100:3001 (IP de l'ordinateur qui exécute le serveur d'impression)
+                  </p>
+                  <p className="text-xs text-gray-500 mt-1">
+                    📖 Voir le dossier <code className="bg-gray-200 px-2 py-1 rounded">print-server/</code> pour installer le serveur
+                  </p>
+                  <p className="text-xs text-gray-500 mt-1">
+                    📱 Ou consultez <code className="bg-gray-200 px-2 py-1 rounded">GUIDE_IMPRESSION_ANDROID.md</code> pour utiliser un smartphone Android
+                  </p>
+                  {printersConfig.print_server_url && printersConfig.print_server_url.trim() !== '' && (
+                    <button
+                      onClick={async () => {
+                        setErrorMessage('');
+                        setSuccessMessage('🔍 Test de connexion au serveur d\'impression...');
+                        try {
+                          const { testPrintServer } = await import('@/lib/services/printService');
+                          const isOnline = await testPrintServer(printersConfig.print_server_url!);
+                          if (isOnline) {
+                            setSuccessMessage('✅ Serveur d\'impression accessible !');
+                          } else {
+                            setErrorMessage('❌ Impossible de se connecter au serveur d\'impression');
+                          }
+                        } catch (error: any) {
+                          setErrorMessage(`❌ Erreur: ${error.message || 'Connexion échouée'}`);
+                        }
+                      }}
+                      className="mt-4 w-full py-3 bg-blue-500 hover:bg-blue-600 text-white font-semibold rounded-2xl transition-all"
+                    >
+                      🔍 Tester la connexion au serveur
+                    </button>
+                  )}
+                </div>
+              </div>
+
               {/* Imprimante Caisse */}
               <div className="border-2 border-orange-300 rounded-2xl p-6 bg-orange-50">
                 <div className="flex items-center justify-between mb-6">

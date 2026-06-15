@@ -97,6 +97,7 @@ interface CommandeData {
   mode_consommation: 'sur_place' | 'a_emporter';
   buzzer?: number;
   table?: number;
+  remarque?: string;
   produits: Array<{
     nom: string;
     quantite: number;
@@ -335,6 +336,21 @@ export function generateTicketCuisine(
     printer.bold(true);
     printer.println(`Mode: ${commande.mode_consommation === 'sur_place' ? 'SUR PLACE' : 'À EMPORTER'}`);
     printer.bold(false);
+  }
+
+  // Remarque cuisine
+  if (commande.remarque && commande.remarque.trim()) {
+    printer.newLine();
+    printer.alignLeft();
+    printer.bold(true);
+    printer.setTextSize(1, 1);
+    printer.println('*** REMARQUE ***');
+    printer.bold(false);
+    printer.setTextNormal();
+    printer.bold(true);
+    printer.println(commande.remarque.trim());
+    printer.bold(false);
+    setPoliceSize();
   }
 
   printer.newLine();

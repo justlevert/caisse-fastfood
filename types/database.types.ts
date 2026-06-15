@@ -100,6 +100,7 @@ export interface TacoCustomization {
   extras: TacoExtra[];
   retraits: TacoIngredient[];
   gratin?: TacoGratin;
+  commentaire?: string;
 }
 
 export interface CartItem {

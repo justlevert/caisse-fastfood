@@ -5,6 +5,7 @@ import dynamic from 'next/dynamic';
 import { Product, CartItem, TacoCustomization } from '@/types/database.types';
 import { useAppData } from '@/lib/contexts/DataContext';
 import { useFullscreen } from '@/lib/hooks/useFullscreen';
+import { useCurrency } from '@/lib/utils/currency';
 import Sidebar from '@/components/Sidebar';
 import ProductCard from '@/components/ProductCard';
 import CartItemComponent from '@/components/CartItem';
@@ -18,6 +19,7 @@ const TacoBuilderModal = dynamic(() => import('@/components/TacoBuilderModal'), 
 
 export default function CommandePage() {
   const { categories, products, isLoading: dataLoading } = useAppData();
+  const { symbol: currencySymbol } = useCurrency();
   const [selectedCategory, setSelectedCategory] = useState<string | null>(null);
   const [cart, setCart] = useState<CartItem[]>([]);
   const [mode, setMode] = useState<'sur_place' | 'a_emporter'>('sur_place');
@@ -34,10 +36,23 @@ export default function CommandePage() {
   useFullscreen();
 
   useEffect(() => {
-    if (categories.length > 0 && !selectedCategory) {
-      setSelectedCategory(categories[0].id);
+    if (categories.length > 0) {
+      // Si aucune catégorie n'est sélectionnée, sélectionner la première
+      if (!selectedCategory) {
+        setSelectedCategory(categories[0].id);
+      } else {
+        // Vérifier si la catégorie sélectionnée existe toujours
+        const categoryExists = categories.some(cat => cat.id === selectedCategory);
+        if (!categoryExists) {
+          // Si la catégorie a été supprimée, sélectionner la première
+          setSelectedCategory(categories[0].id);
+        }
+      }
+    } else if (categories.length === 0 && selectedCategory) {
+      // Si toutes les catégories ont été supprimées
+      setSelectedCategory(null);
     }
-  }, [categories, selectedCategory]);
+  }, [categories]);
 
   const filteredProducts = useMemo(() => {
     return selectedCategory
@@ -247,7 +262,7 @@ export default function CommandePage() {
           <div className="p-4 lg:p-6 border-t border-gray-200 space-y-3 lg:space-y-4">
             <div className="flex justify-between items-center text-xl lg:text-2xl font-bold">
               <span className="text-gray-800">Total</span>
-              <span className="text-orange-500">{total.toFixed(2)} €</span>
+              <span className="text-orange-500">{total.toFixed(2)} {currencySymbol}</span>
             </div>
 
             {cart.length > 0 && (
@@ -278,7 +293,7 @@ export default function CommandePage() {
             className="w-full py-4 bg-gradient-to-r from-orange-500 to-orange-600 text-white font-bold text-lg rounded-2xl shadow-2xl shadow-orange-500/50 flex items-center justify-between px-6"
           >
             <span>🛒 {cart.length} article{cart.length !== 1 ? 's' : ''}</span>
-            <span>{total.toFixed(2)} €</span>
+            <span>{total.toFixed(2)} {currencySymbol}</span>
           </button>
         </div>
       )}

@@ -2,6 +2,7 @@
 
 import { useState, useEffect, useMemo } from 'react';
 import { useAppData } from '@/lib/contexts/DataContext';
+import { useCurrency } from '@/lib/utils/currency';
 import {
   Product,
   TacoSize,
@@ -27,6 +28,7 @@ export default function TacoBuilderModal({
   existingCustomization,
 }: TacoBuilderModalProps) {
   const { tacoSizes, tacoMeats, tacoSauces, tacoExtras, tacoIngredients, tacoGratins } = useAppData();
+  const { symbol: currencySymbol } = useCurrency();
   
   const [currentStep, setCurrentStep] = useState(1);
   const totalSteps = 6;
@@ -37,6 +39,7 @@ export default function TacoBuilderModal({
   const [selectedExtras, setSelectedExtras] = useState<TacoExtra[]>([]);
   const [selectedRetraits, setSelectedRetraits] = useState<TacoIngredient[]>([]);
   const [selectedGratin, setSelectedGratin] = useState<TacoGratin | null>(null);
+  const [commentaire, setCommentaire] = useState<string>('');
 
   useEffect(() => {
     if (existingCustomization && tacoSizes.length > 0) {
@@ -46,6 +49,7 @@ export default function TacoBuilderModal({
       setSelectedExtras(existingCustomization.extras);
       setSelectedRetraits(existingCustomization.retraits);
       setSelectedGratin(existingCustomization.gratin || null);
+      setCommentaire(existingCustomization.commentaire || '');
     }
   }, [existingCustomization, tacoSizes]);
 
@@ -100,6 +104,7 @@ export default function TacoBuilderModal({
       extras: selectedExtras,
       retraits: selectedRetraits,
       gratin: selectedGratin || undefined,
+      commentaire: commentaire.trim() || undefined,
     };
 
     onConfirm(product, customization);
@@ -174,6 +179,11 @@ export default function TacoBuilderModal({
           ))}
         </div>
 
+        {/* Layout principal avec récapitulatif */}
+        <div className="flex flex-col lg:flex-row gap-4 lg:gap-6">
+          {/* Contenu principal (étapes) */}
+          <div className="flex-1">
+
         {/* Étape 1 : Choix de la taille */}
         {currentStep === 1 && (
           <div>
@@ -190,7 +200,7 @@ export default function TacoBuilderModal({
                   }`}
                 >
                   <div className="text-xl sm:text-3xl font-bold mb-1 sm:mb-2">{size.nom}</div>
-                  <div className="text-base sm:text-lg font-semibold">{size.prix.toFixed(2)} €</div>
+                  <div className="text-base sm:text-lg font-semibold">{size.prix.toFixed(2)} {currencySymbol}</div>
                   <div className="text-xs sm:text-sm mt-1 sm:mt-2 opacity-80">
                     {size.max_viandes} viande{size.max_viandes > 1 ? 's' : ''}
                   </div>
@@ -232,7 +242,13 @@ export default function TacoBuilderModal({
                         : 'bg-white text-gray-800 border-gray-200 hover:border-blue-400'
                     }`}
                   >
-                    <div className="text-2xl sm:text-4xl mb-1 sm:mb-2">🍖</div>
+                    {meat.image_url ? (
+                      <div className="w-12 h-12 sm:w-16 sm:h-16 mx-auto mb-1 sm:mb-2 rounded-lg overflow-hidden bg-gray-100">
+                        <img src={meat.image_url} alt={meat.nom} className="w-full h-full object-cover" />
+                      </div>
+                    ) : (
+                      <div className="text-2xl sm:text-4xl mb-1 sm:mb-2">🍖</div>
+                    )}
                     <div className="text-sm sm:text-base font-semibold">{meat.nom}</div>
                   </button>
                 );
@@ -274,7 +290,13 @@ export default function TacoBuilderModal({
                         : 'bg-white text-gray-800 border-gray-200 hover:border-blue-400'
                     }`}
                   >
-                    <div className="text-4xl mb-2">🌶️</div>
+                    {sauce.image_url ? (
+                      <div className="w-16 h-16 mx-auto mb-2 rounded-lg overflow-hidden bg-gray-100">
+                        <img src={sauce.image_url} alt={sauce.nom} className="w-full h-full object-cover" />
+                      </div>
+                    ) : (
+                      <div className="text-4xl mb-2">🌶️</div>
+                    )}
                     <div className="text-base font-semibold">{sauce.nom}</div>
                   </button>
                 );
@@ -306,9 +328,15 @@ export default function TacoBuilderModal({
                         : 'bg-white text-gray-800 border-gray-200 hover:border-blue-400'
                     }`}
                   >
-                    <div className="text-4xl mb-2">➕</div>
+                    {extra.image_url ? (
+                      <div className="w-16 h-16 mx-auto mb-2 rounded-lg overflow-hidden bg-gray-100">
+                        <img src={extra.image_url} alt={extra.nom} className="w-full h-full object-cover" />
+                      </div>
+                    ) : (
+                      <div className="text-4xl mb-2">➕</div>
+                    )}
                     <div className="text-base font-semibold">{extra.nom}</div>
-                    <div className="text-sm mt-1">+{extra.prix.toFixed(2)} €</div>
+                    <div className="text-sm mt-1">+{extra.prix.toFixed(2)} {currencySymbol}</div>
                   </button>
                 );
               })}
@@ -344,46 +372,61 @@ export default function TacoBuilderModal({
           </div>
         )}
 
-        {/* Étape 6 : Gratinage */}
+        {/* Étape 6 : Gratinage et Commentaire */}
         {currentStep === 6 && (
-          <div>
-            <h3 className="text-lg sm:text-xl font-bold text-gray-800 mb-3 sm:mb-5">
-              Gratinage (optionnel)
-            </h3>
-            <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 gap-2 sm:gap-4">
-              {tacoGratins.map((gratin) => {
-                const isSelected = selectedGratin?.id === gratin.id;
-                return (
-                  <button
-                    key={gratin.id}
-                    onClick={() => setSelectedGratin(isSelected ? null : gratin)}
-                    className={`p-5 rounded-2xl border-3 transition-all min-h-[120px] ${
-                      isSelected
-                        ? 'bg-orange-600 text-white border-orange-600 shadow-lg'
-                        : 'bg-white text-gray-800 border-gray-200 hover:border-orange-400'
-                    }`}
-                  >
-                    <div className="text-4xl mb-2">🧀</div>
-                    <div className="text-base font-semibold">{gratin.nom}</div>
-                    <div className="text-sm mt-1">
-                      {gratin.prix === 0 ? 'Gratuit' : `+${gratin.prix.toFixed(2)} €`}
-                    </div>
-                  </button>
-                );
-              })}
+          <div className="space-y-6">
+            {/* Gratinage */}
+            <div>
+              <h3 className="text-lg sm:text-xl font-bold text-gray-800 mb-3 sm:mb-5">
+                Gratinage (optionnel)
+              </h3>
+              <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 gap-2 sm:gap-4">
+                {tacoGratins.map((gratin) => {
+                  const isSelected = selectedGratin?.id === gratin.id;
+                  return (
+                    <button
+                      key={gratin.id}
+                      onClick={() => setSelectedGratin(isSelected ? null : gratin)}
+                      className={`p-5 rounded-2xl border-3 transition-all min-h-[120px] ${
+                        isSelected
+                          ? 'bg-orange-600 text-white border-orange-600 shadow-lg'
+                          : 'bg-white text-gray-800 border-gray-200 hover:border-orange-400'
+                      }`}
+                    >
+                      {gratin.image_url ? (
+                        <div className="w-16 h-16 mx-auto mb-2 rounded-lg overflow-hidden bg-gray-100">
+                          <img src={gratin.image_url} alt={gratin.nom} className="w-full h-full object-cover" />
+                        </div>
+                      ) : (
+                        <div className="text-4xl mb-2">🧀</div>
+                      )}
+                      <div className="text-base font-semibold">{gratin.nom}</div>
+                      <div className="text-sm mt-1">
+                        {gratin.prix === 0 ? 'Gratuit' : `+${gratin.prix.toFixed(2)} ${currencySymbol}`}
+                      </div>
+                    </button>
+                  );
+                })}
+              </div>
+            </div>
+
+            {/* Commentaire */}
+            <div>
+              <h3 className="text-lg sm:text-xl font-bold text-gray-800 mb-3">
+                Commentaire (optionnel)
+              </h3>
+              <textarea
+                value={commentaire}
+                onChange={(e) => setCommentaire(e.target.value)}
+                rows={3}
+                maxLength={200}
+                placeholder="Ex: Bien cuit, sans oignon, allergie arachides..."
+                className="w-full px-4 py-3 text-base border-2 border-gray-300 rounded-xl focus:border-primary-500 focus:outline-none resize-none"
+              />
+              <p className="text-xs text-gray-400 mt-1 text-right">{commentaire.length}/200</p>
             </div>
           </div>
         )}
-
-        {/* Prix total */}
-        <div className="mt-4 sm:mt-8 p-3 sm:p-5 bg-primary-50 rounded-xl sm:rounded-2xl border-2 border-blue-200">
-          <div className="flex justify-between items-center">
-            <span className="text-base sm:text-lg font-semibold text-gray-700">Prix total</span>
-            <span className="text-xl sm:text-2xl font-bold text-primary-500">
-              {calculatePrice().toFixed(2)} €
-            </span>
-          </div>
-        </div>
 
         {/* Boutons de navigation */}
         <div className="flex gap-2 sm:gap-4 mt-4 sm:mt-6">
@@ -414,6 +457,124 @@ export default function TacoBuilderModal({
               <span className="sm:hidden">Ajouter</span>
             </button>
           )}
+        </div>
+          </div>
+
+          {/* Panneau récapitulatif */}
+          <div className="lg:w-80 bg-gradient-to-br from-orange-50 to-orange-100 rounded-2xl p-4 sm:p-6 border-2 border-orange-200 sticky top-4">
+            <h3 className="text-lg font-bold text-gray-800 mb-4 flex items-center gap-2">
+              <span>📋</span>
+              <span>Votre composition</span>
+            </h3>
+            
+            <div className="space-y-3">
+              {/* Taille */}
+              {selectedSize && (
+                <div className="bg-white rounded-xl p-3 shadow-sm">
+                  <div className="text-xs font-semibold text-gray-500 mb-1">TAILLE</div>
+                  <div className="font-bold text-gray-800">{selectedSize.nom}</div>
+                  <div className="text-sm text-primary-600 font-semibold">{selectedSize.prix.toFixed(2)} {currencySymbol}</div>
+                </div>
+              )}
+
+              {/* Viandes */}
+              {selectedMeats.length > 0 && (
+                <div className="bg-white rounded-xl p-3 shadow-sm">
+                  <div className="text-xs font-semibold text-gray-500 mb-2">VIANDES ({selectedMeats.length})</div>
+                  <div className="space-y-1">
+                    {selectedMeats.map((meat) => (
+                      <div key={meat.id} className="text-sm text-gray-700 flex items-center gap-2">
+                        <span className="text-xs">🍖</span>
+                        <span>{meat.nom}</span>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              )}
+
+              {/* Sauces */}
+              {selectedSauces.length > 0 && (
+                <div className="bg-white rounded-xl p-3 shadow-sm">
+                  <div className="text-xs font-semibold text-gray-500 mb-2">SAUCES ({selectedSauces.length})</div>
+                  <div className="space-y-1">
+                    {selectedSauces.map((sauce) => (
+                      <div key={sauce.id} className="text-sm text-gray-700 flex items-center gap-2">
+                        <span className="text-xs">🌶️</span>
+                        <span>{sauce.nom}</span>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              )}
+
+              {/* Extras */}
+              {selectedExtras.length > 0 && (
+                <div className="bg-white rounded-xl p-3 shadow-sm">
+                  <div className="text-xs font-semibold text-gray-500 mb-2">SUPPLÉMENTS ({selectedExtras.length})</div>
+                  <div className="space-y-1">
+                    {selectedExtras.map((extra) => (
+                      <div key={extra.id} className="text-sm text-gray-700 flex items-center justify-between">
+                        <div className="flex items-center gap-2">
+                          <span className="text-xs">➕</span>
+                          <span>{extra.nom}</span>
+                        </div>
+                        <span className="text-xs font-semibold text-primary-600">+{extra.prix.toFixed(2)} {currencySymbol}</span>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              )}
+
+              {/* Retraits */}
+              {selectedRetraits.length > 0 && (
+                <div className="bg-white rounded-xl p-3 shadow-sm">
+                  <div className="text-xs font-semibold text-gray-500 mb-2">SANS ({selectedRetraits.length})</div>
+                  <div className="space-y-1">
+                    {selectedRetraits.map((retrait) => (
+                      <div key={retrait.id} className="text-sm text-gray-700 flex items-center gap-2">
+                        <span className="text-xs">❌</span>
+                        <span>{retrait.nom}</span>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              )}
+
+              {/* Gratin */}
+              {selectedGratin && (
+                <div className="bg-white rounded-xl p-3 shadow-sm">
+                  <div className="text-xs font-semibold text-gray-500 mb-1">GRATINAGE</div>
+                  <div className="flex items-center justify-between">
+                    <div className="flex items-center gap-2">
+                      <span className="text-sm">🧀</span>
+                      <span className="text-sm font-semibold text-gray-800">{selectedGratin.nom}</span>
+                    </div>
+                    {selectedGratin.prix > 0 && (
+                      <span className="text-xs font-semibold text-primary-600">+{selectedGratin.prix.toFixed(2)} {currencySymbol}</span>
+                    )}
+                  </div>
+                </div>
+              )}
+
+              {/* Commentaire */}
+              {commentaire.trim() && (
+                <div className="bg-white rounded-xl p-3 shadow-sm">
+                  <div className="text-xs font-semibold text-gray-500 mb-1">COMMENTAIRE</div>
+                  <div className="text-sm text-gray-700 italic">“{commentaire.trim()}”</div>
+                </div>
+              )}
+            </div>
+
+            {/* Prix total */}
+            <div className="mt-4 pt-4 border-t-2 border-orange-200">
+              <div className="flex justify-between items-center">
+                <span className="text-base font-bold text-gray-700">TOTAL</span>
+                <span className="text-2xl font-bold text-primary-600">
+                  {calculatePrice().toFixed(2)} {currencySymbol}
+                </span>
+              </div>
+            </div>
+          </div>
         </div>
       </div>
     </div>

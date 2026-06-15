@@ -3,6 +3,7 @@
 import { useState, useEffect } from 'react';
 import { supabase } from '@/lib/supabase';
 import { TacoGratin } from '@/types/database.types';
+import ImageUploader from '@/components/ImageUploader';
 
 export default function AdminTacoGratinsPage() {
   const [gratins, setGratins] = useState<TacoGratin[]>([]);
@@ -217,14 +218,12 @@ export default function AdminTacoGratinsPage() {
               </div>
               <div>
                 <label className="block text-sm font-semibold text-gray-700 mb-2">
-                  Image URL (optionnel)
+                  Image du gratinage
                 </label>
-                <input
-                  type="text"
-                  value={formData.image_url}
-                  onChange={(e) => setFormData({ ...formData, image_url: e.target.value })}
-                  className="w-full px-4 py-3 border-2 border-gray-300 rounded-2xl focus:border-primary-500 focus:outline-none"
-                  placeholder="https://..."
+                <ImageUploader
+                  currentImageUrl={formData.image_url}
+                  onImageUploaded={(url) => setFormData({ ...formData, image_url: url })}
+                  onImageUrlChange={(url) => setFormData({ ...formData, image_url: url })}
                 />
               </div>
               <div className="flex items-center">

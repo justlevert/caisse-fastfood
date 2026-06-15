@@ -4,11 +4,13 @@ import { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
 import { supabase } from '@/lib/supabase';
 import { Category } from '@/types/database.types';
+import { useAppData } from '@/lib/contexts/DataContext';
 import ImageUploader from '@/components/ImageUploader';
 import { getUserPin } from '@/lib/utils/auth';
 
 export default function AdminCategoriesPage() {
   const router = useRouter();
+  const { refreshData } = useAppData();
   const [categories, setCategories] = useState<Category[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [showModal, setShowModal] = useState(false);
@@ -83,7 +85,8 @@ export default function AdminCategoriesPage() {
 
       if (!error) {
         showSuccess('✅ Catégorie modifiée avec succès');
-        loadCategories();
+        await loadCategories();
+        await refreshData(); // Rafraîchir le cache global
         closeModal();
       } else {
         showError('❌ Erreur lors de la modification');
@@ -100,7 +103,8 @@ export default function AdminCategoriesPage() {
 
       if (!error) {
         showSuccess('✅ Catégorie ajoutée avec succès');
-        loadCategories();
+        await loadCategories();
+        await refreshData(); // Rafraîchir le cache global
         closeModal();
       } else {
         showError('❌ Erreur lors de l\'ajout');
@@ -123,7 +127,8 @@ export default function AdminCategoriesPage() {
 
     if (!error) {
       showSuccess('✅ Catégorie supprimée');
-      loadCategories();
+      await loadCategories();
+      await refreshData(); // Rafraîchir le cache global
       setShowDeleteModal(false);
       setDeletingCategory(null);
     } else {
@@ -156,7 +161,8 @@ export default function AdminCategoriesPage() {
         .eq('id', update.id);
     }
 
-    loadCategories();
+    await loadCategories();
+    await refreshData(); // Rafraîchir le cache global
   };
 
   const handleDragStart = (index: number) => {
@@ -198,7 +204,8 @@ export default function AdminCategoriesPage() {
     }
 
     setDraggedIndex(null);
-    loadCategories();
+    await loadCategories();
+    await refreshData(); // Rafraîchir le cache global
   };
 
   const openModal = (category?: Category) => {

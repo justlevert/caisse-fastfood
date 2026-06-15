@@ -16,7 +16,27 @@ export default function LoginPage() {
   const [error, setError] = useState('');
   const [loading, setLoading] = useState(false);
   const [lockoutTime, setLockoutTime] = useState(0);
+  const [logoConfig, setLogoConfig] = useState<{ actif: boolean; url: string }>({ actif: false, url: '' });
   const router = useRouter();
+
+  // Charger le logo personnalisé de l'application
+  useEffect(() => {
+    const loadLogo = async () => {
+      try {
+        const { data } = await supabase
+          .from('settings')
+          .select('value')
+          .eq('key', 'app_logo_config')
+          .single();
+        if (data?.value) {
+          setLogoConfig(JSON.parse(data.value));
+        }
+      } catch (e) {
+        // Pas de logo configuré, on garde l'icône par défaut
+      }
+    };
+    loadLogo();
+  }, []);
 
   const handleNumberClick = (num: string) => {
     if (pin.length < 4) {
@@ -125,44 +145,46 @@ export default function LoginPage() {
   };
 
   return (
-    <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-slate-900 via-blue-900 to-slate-900 p-4">
-      <div className="bg-white/95 backdrop-blur-sm rounded-3xl shadow-2xl p-8 sm:p-12 w-full max-w-md">
+    <div className="min-h-screen flex items-center justify-center bg-gray-50 p-4">
+      <div className="bg-white shadow-premium rounded-3xl p-8 sm:p-12 w-full max-w-md animate-fade-in border border-gray-100">
         {/* Logo et titre */}
         <div className="text-center mb-10">
-          <div className="inline-flex items-center justify-center w-20 h-20 bg-gradient-to-br from-blue-600 to-blue-700 rounded-3xl shadow-xl mb-6">
-            <span className="text-4xl">🍔</span>
-          </div>
-          <h1 className="text-3xl sm:text-4xl font-bold bg-gradient-to-r from-blue-600 to-blue-800 bg-clip-text text-transparent mb-2">
+          {logoConfig.actif && logoConfig.url && (
+            <div className="inline-flex items-center justify-center w-24 h-24 rounded-3xl shadow-lg mb-6 overflow-hidden bg-white border border-gray-100">
+              <img src={logoConfig.url} alt="Logo" className="w-full h-full object-contain" />
+            </div>
+          )}
+          <h1 className="text-4xl sm:text-5xl font-extrabold bg-gradient-to-r from-orange-500 to-orange-600 bg-clip-text text-transparent mb-3 tracking-tight">
             LevertOS
           </h1>
-          <p className="text-gray-600 font-medium">Authentification sécurisée</p>
+          <p className="text-gray-500 font-semibold text-sm uppercase tracking-wider">Authentification sécurisée</p>
         </div>
 
         {/* Affichage PIN */}
         <div className="mb-8">
-          <label className="block text-sm font-semibold text-gray-700 mb-3 text-center uppercase tracking-wide">
+          <label className="block text-xs font-bold text-gray-600 mb-4 text-center uppercase tracking-widest">
             Code PIN
           </label>
-          <div className="flex justify-center gap-3 sm:gap-4 mb-4">
+          <div className="flex justify-center gap-4 mb-4">
             {[0, 1, 2, 3].map((index) => (
               <div
                 key={index}
-                className={`w-14 h-14 sm:w-16 sm:h-16 rounded-2xl border-2 flex items-center justify-center transition-all duration-200 ${
+                className={`w-16 h-16 sm:w-20 sm:h-20 rounded-2xl border-2 flex items-center justify-center transition-all duration-300 ${
                   pin[index] 
-                    ? 'border-blue-500 bg-blue-50 shadow-lg shadow-blue-500/20' 
-                    : 'border-gray-300 bg-gray-50'
+                    ? 'border-orange-500 bg-orange-50 shadow-lg shadow-orange-500/20 scale-105' 
+                    : 'border-gray-200 bg-gray-50 shadow-sm'
                 }`}
               >
                 {pin[index] && (
-                  <div className="w-4 h-4 rounded-full bg-gradient-to-br from-blue-600 to-blue-700 animate-scale-in"></div>
+                  <div className="w-4 h-4 rounded-full bg-gradient-to-br from-orange-500 to-orange-600 animate-scale-in"></div>
                 )}
               </div>
             ))}
           </div>
           {error && (
-            <div className="bg-red-50 border-2 border-red-200 rounded-xl p-3 mt-3">
-              <p className="text-red-600 text-center text-sm font-semibold flex items-center justify-center gap-2">
-                <span>⚠️</span>
+            <div className="bg-gradient-to-r from-red-50 to-red-100 border-2 border-red-300 rounded-xl p-3 mt-3 animate-shake shadow-lg">
+              <p className="text-red-700 text-center text-sm font-bold flex items-center justify-center gap-2">
+                <span className="text-lg">⚠️</span>
                 <span>{error}</span>
               </p>
             </div>
@@ -176,7 +198,7 @@ export default function LoginPage() {
               key={num}
               onClick={() => handleNumberClick(num.toString())}
               disabled={loading}
-              className="h-16 sm:h-20 text-2xl sm:text-3xl font-bold rounded-2xl bg-white border-2 border-gray-200 hover:border-blue-500 hover:bg-blue-50 hover:shadow-lg active:scale-95 transition-all duration-200 shadow-md disabled:opacity-50 disabled:cursor-not-allowed"
+              className="h-20 sm:h-20 text-2xl sm:text-3xl font-bold rounded-2xl bg-white border-2 border-gray-200 hover:border-orange-400 hover:bg-orange-50 hover:shadow-md hover:scale-105 active:scale-95 transition-all duration-200 shadow-sm text-gray-700 disabled:opacity-50 disabled:cursor-not-allowed"
             >
               {num}
             </button>
@@ -184,21 +206,21 @@ export default function LoginPage() {
           <button
             onClick={handleClear}
             disabled={loading}
-            className="h-16 sm:h-20 text-base sm:text-lg font-bold rounded-2xl bg-gradient-to-br from-red-50 to-red-100 border-2 border-red-200 hover:border-red-400 hover:from-red-100 hover:to-red-200 hover:shadow-lg active:scale-95 transition-all duration-200 text-red-600 shadow-md disabled:opacity-50 disabled:cursor-not-allowed"
+            className="h-20 sm:h-20 text-base sm:text-lg font-bold rounded-2xl bg-gradient-to-br from-red-50 to-red-100 border-2 border-red-200 hover:border-red-400 hover:from-red-100 hover:to-red-200 hover:shadow-lg hover:scale-105 active:scale-95 transition-all duration-300 text-red-600 shadow-md disabled:opacity-50 disabled:cursor-not-allowed"
           >
             <span className="text-xl sm:text-2xl">🗑️</span>
           </button>
           <button
             onClick={() => handleNumberClick('0')}
             disabled={loading}
-            className="h-16 sm:h-20 text-2xl sm:text-3xl font-bold rounded-2xl bg-white border-2 border-gray-200 hover:border-blue-500 hover:bg-blue-50 hover:shadow-lg active:scale-95 transition-all duration-200 shadow-md disabled:opacity-50 disabled:cursor-not-allowed"
+            className="h-20 sm:h-20 text-2xl sm:text-3xl font-bold rounded-2xl bg-white border-2 border-gray-200 hover:border-orange-400 hover:bg-orange-50 hover:shadow-md hover:scale-105 active:scale-95 transition-all duration-200 shadow-sm text-gray-700 disabled:opacity-50 disabled:cursor-not-allowed"
           >
             0
           </button>
           <button
             onClick={handleDelete}
             disabled={loading}
-            className="h-16 sm:h-20 text-xl sm:text-2xl font-bold rounded-2xl bg-gradient-to-br from-gray-100 to-gray-200 border-2 border-gray-300 hover:border-gray-400 hover:from-gray-200 hover:to-gray-300 hover:shadow-lg active:scale-95 transition-all duration-200 text-gray-700 shadow-md disabled:opacity-50 disabled:cursor-not-allowed"
+            className="h-20 sm:h-20 text-xl sm:text-2xl font-bold rounded-2xl bg-gradient-to-br from-gray-100 to-gray-200 border-2 border-gray-300 hover:border-gray-400 hover:from-gray-200 hover:to-gray-300 hover:shadow-lg hover:scale-105 active:scale-95 transition-all duration-300 text-gray-700 shadow-md disabled:opacity-50 disabled:cursor-not-allowed"
           >
             ⌫
           </button>
@@ -208,43 +230,29 @@ export default function LoginPage() {
         <button
           onClick={handleLogin}
           disabled={pin.length !== 4 || loading}
-          className="w-full h-14 sm:h-16 text-lg sm:text-xl font-bold rounded-2xl bg-gradient-to-r from-blue-600 to-blue-700 hover:from-blue-700 hover:to-blue-800 active:scale-[0.98] disabled:from-gray-300 disabled:to-gray-400 disabled:cursor-not-allowed text-white transition-all duration-200 shadow-xl hover:shadow-2xl flex items-center justify-center gap-3"
+          className="w-full h-16 sm:h-20 text-lg sm:text-xl font-bold rounded-2xl bg-gradient-to-r from-orange-500 to-orange-600 hover:from-orange-600 hover:to-orange-700 hover:shadow-lg hover:shadow-orange-500/40 active:scale-95 disabled:from-gray-300 disabled:to-gray-400 disabled:cursor-not-allowed text-white transition-all duration-200 shadow-md flex items-center justify-center gap-3"
         >
           {loading ? (
             <>
-              <div className="inline-block animate-spin rounded-full h-5 w-5 border-3 border-white border-t-transparent"></div>
-              <span>Connexion en cours...</span>
+              <div className="inline-block animate-spin rounded-full h-6 w-6 border-3 border-white border-t-transparent relative z-10"></div>
+              <span className="relative z-10">Connexion en cours...</span>
             </>
           ) : (
             <>
-              <span className="text-2xl">🔓</span>
-              <span>Se connecter</span>
+              <span className="text-2xl relative z-10">🔓</span>
+              <span className="relative z-10">Se connecter</span>
             </>
           )}
         </button>
 
         {/* Footer */}
-        <p className="text-xs text-gray-500 text-center mt-6">
-          Accès réservé au personnel autorisé
-        </p>
+        <div className="mt-8 text-center">
+          <p className="text-xs font-semibold text-gray-400 uppercase tracking-wider flex items-center justify-center gap-2">
+            <span className="text-sm">🔒</span>
+            <span>Accès réservé au personnel autorisé</span>
+          </p>
+        </div>
       </div>
-
-      {/* Animation CSS */}
-      <style jsx global>{`
-        @keyframes scale-in {
-          from {
-            transform: scale(0);
-            opacity: 0;
-          }
-          to {
-            transform: scale(1);
-            opacity: 1;
-          }
-        }
-        .animate-scale-in {
-          animation: scale-in 0.2s ease-out;
-        }
-      `}</style>
     </div>
   );
 }
