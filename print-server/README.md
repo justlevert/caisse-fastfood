@@ -47,7 +47,110 @@ http://[IP_SERVEUR]:3001/health
 
 Vous devriez voir : `{"status":"ok","message":"Serveur d'impression actif"}`
 
-## 📝 Notes
+## � Endpoints disponibles
+
+### 1. GET `/health`
+Vérifier que le serveur est actif.
+
+**Response** :
+```json
+{
+  "status": "ok",
+  "message": "Serveur d'impression actif"
+}
+```
+
+### 2. POST `/test-printer`
+Tester la connexion à une imprimante spécifique.
+
+**Request** :
+```json
+{
+  "ip": "192.168.1.100",
+  "port": 9100
+}
+```
+
+**Response** :
+```json
+{
+  "success": true,
+  "message": "Imprimante 192.168.1.100:9100 accessible"
+}
+```
+
+### 3. POST `/scan-printers`
+Scanner le réseau pour détecter les imprimantes disponibles.
+
+**Request** :
+```json
+{
+  "subnet": "192.168.1",
+  "startIp": 1,
+  "endIp": 254,
+  "port": 9100
+}
+```
+
+**Response** :
+```json
+{
+  "success": true,
+  "printers": [
+    {
+      "ip": "192.168.1.100",
+      "port": 9100,
+      "name": "Imprimante Epson 192.168.1.100",
+      "status": "online"
+    }
+  ],
+  "message": "1 imprimante(s) détectée(s)"
+}
+```
+
+### 4. POST `/print`
+Imprimer un ticket sur une imprimante.
+
+**Request** :
+```json
+{
+  "ip": "192.168.1.100",
+  "port": 9100,
+  "commands": [
+    { "method": "alignCenter", "args": [] },
+    { "method": "bold", "args": [true] },
+    { "method": "println", "args": ["TICKET DE TEST"] },
+    { "method": "bold", "args": [false] },
+    { "method": "cut", "args": [] }
+  ]
+}
+```
+
+**Response** :
+```json
+{
+  "success": true,
+  "message": "Impression réussie"
+}
+```
+
+## ✨ Nouvelle fonctionnalité : Détection automatique
+
+Le serveur peut maintenant scanner votre réseau local pour détecter automatiquement les imprimantes thermiques Epson disponibles.
+
+**Avantages** :
+- ✅ Plus besoin de chercher les IP manuellement
+- ✅ Détection rapide (20-40 secondes pour 254 IPs)
+- ✅ Affichage du statut en temps réel
+- ✅ Assignment en un clic depuis l'interface
+
+**Utilisation** :
+1. Dans l'application, allez dans **Paramètres → Imprimantes**
+2. Cliquez sur **"🔍 Scanner le réseau"**
+3. Les imprimantes détectées s'affichent automatiquement
+4. Cliquez sur **"🖨️ Caisse"** ou **"👨‍🍳 Cuisine"** pour assigner
+
+## �📝 Notes
 
 - Le serveur doit rester actif pendant les heures d'ouverture
 - Utilisez `npm run dev` pour le développement (redémarrage automatique)

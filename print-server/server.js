@@ -14,6 +14,117 @@ app.get('/health', (req, res) => {
   res.json({ status: 'ok', message: 'Serveur d\'impression actif' });
 });
 
+// Route pour tester une imprimante
+app.post('/test-printer', async (req, res) => {
+  try {
+    const { ip, port = 9100 } = req.body;
+
+    if (!ip) {
+      return res.status(400).json({
+        success: false,
+        message: 'Adresse IP requise'
+      });
+    }
+
+    console.log(`🔍 Test de connexion à ${ip}:${port}`);
+
+    const printer = new ThermalPrinter({
+      type: PrinterTypes.EPSON,
+      interface: `tcp://${ip}:${port}`,
+      options: { timeout: 3000 }
+    });
+
+    const isConnected = await printer.isPrinterConnected();
+
+    if (isConnected) {
+      console.log(`✅ Imprimante ${ip}:${port} connectée`);
+      res.json({
+        success: true,
+        message: `Imprimante ${ip}:${port} accessible`
+      });
+    } else {
+      console.log(`❌ Imprimante ${ip}:${port} non accessible`);
+      res.status(400).json({
+        success: false,
+        message: `Imprimante ${ip}:${port} non accessible`
+      });
+    }
+  } catch (error) {
+    console.error(`❌ Erreur test imprimante:`, error.message);
+    res.status(500).json({
+      success: false,
+      message: error.message
+    });
+  }
+});
+
+// Route pour scanner le réseau et détecter les imprimantes
+app.post('/scan-printers', async (req, res) => {
+  try {
+    const { subnet = '192.168.1', startIp = 1, endIp = 254, port = 9100 } = req.body;
+
+    console.log(`🔍 Scan du réseau ${subnet}.${startIp}-${endIp}:${port}...`);
+
+    const printers = [];
+    const promises = [];
+
+    // Scanner les IPs en parallèle (par groupes de 20 pour ne pas surcharger)
+    const batchSize = 20;
+    for (let i = startIp; i <= endIp; i += batchSize) {
+      const batch = [];
+      
+      for (let j = i; j < Math.min(i + batchSize, endIp + 1); j++) {
+        const ip = `${subnet}.${j}`;
+        
+        batch.push(
+          (async () => {
+            try {
+              const printer = new ThermalPrinter({
+                type: PrinterTypes.EPSON,
+                interface: `tcp://${ip}:${port}`,
+                options: { timeout: 1000 } // Timeout court pour le scan
+              });
+
+              const isConnected = await printer.isPrinterConnected();
+
+              if (isConnected) {
+                console.log(`✅ Imprimante trouvée: ${ip}:${port}`);
+                return {
+                  ip,
+                  port,
+                  name: `Imprimante Epson ${ip}`,
+                  status: 'online'
+                };
+              }
+            } catch (error) {
+              // Ignorer les erreurs (imprimante non trouvée)
+            }
+            return null;
+          })()
+        );
+      }
+
+      const results = await Promise.all(batch);
+      printers.push(...results.filter(p => p !== null));
+    }
+
+    console.log(`✅ Scan terminé: ${printers.length} imprimante(s) trouvée(s)`);
+
+    res.json({
+      success: true,
+      printers,
+      message: `${printers.length} imprimante(s) détectée(s)`
+    });
+
+  } catch (error) {
+    console.error('❌ Erreur scan réseau:', error);
+    res.status(500).json({
+      success: false,
+      message: error.message || 'Erreur lors du scan du réseau'
+    });
+  }
+});
+
 // Route d'impression
 app.post('/print', async (req, res) => {
   try {

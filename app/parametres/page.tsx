@@ -144,6 +144,12 @@ export default function ParametresPage() {
     print_server_url: ''
   });
   const [testingPrinter, setTestingPrinter] = useState<string | null>(null);
+  
+  // États pour la détection des imprimantes
+  const [availablePrinters, setAvailablePrinters] = useState<Array<{ip: string; port: number; name: string; status: 'online' | 'offline'}>>([]);
+  const [scanningPrinters, setScanningPrinters] = useState(false);
+  const [showPrinterSelector, setShowPrinterSelector] = useState(false);
+  const [printerToAssign, setPrinterToAssign] = useState<'caisse' | 'cuisine' | null>(null);
 
   // États pour le changement de mot de passe
   const [ancienPassword, setAncienPassword] = useState('');
@@ -464,6 +470,64 @@ export default function ParametresPage() {
     } finally {
       setTestingPrinter(null);
     }
+  };
+
+  // Fonction pour scanner les imprimantes disponibles
+  const scanAvailablePrinters = async () => {
+    setScanningPrinters(true);
+    setErrorMessage('');
+    setSuccessMessage('🔍 Recherche des imprimantes sur le réseau...');
+    
+    try {
+      const serverUrl = printersConfig.print_server_url;
+      
+      if (!serverUrl || serverUrl.trim() === '') {
+        setErrorMessage('❌ Veuillez configurer l\'URL du serveur d\'impression d\'abord');
+        setScanningPrinters(false);
+        return;
+      }
+
+      // Appeler le serveur d'impression pour scanner le réseau
+      const response = await fetch(`${serverUrl}/scan-printers`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          subnet: '192.168.1', // Peut être configuré
+          startIp: 1,
+          endIp: 254,
+          port: 9100
+        })
+      });
+
+      if (!response.ok) {
+        throw new Error('Erreur lors du scan du réseau');
+      }
+
+      const data = await response.json();
+      
+      if (data.success && data.printers) {
+        setAvailablePrinters(data.printers);
+        setSuccessMessage(`✅ ${data.printers.length} imprimante(s) trouvée(s) !`);
+      } else {
+        setAvailablePrinters([]);
+        setSuccessMessage('ℹ️ Aucune imprimante trouvée sur le réseau');
+      }
+    } catch (error: any) {
+      setErrorMessage(`❌ Erreur lors du scan: ${error.message}`);
+      console.error('Erreur scan imprimantes:', error);
+    } finally {
+      setScanningPrinters(false);
+    }
+  };
+
+  // Fonction pour assigner une imprimante détectée
+  const assignPrinter = (printerIp: string, printerPort: number, targetType: 'caisse' | 'cuisine') => {
+    updatePrinterConfig(targetType, 'ip', printerIp);
+    updatePrinterConfig(targetType, 'port', printerPort);
+    updatePrinterConfig(targetType, 'statut', 'active');
+    setShowPrinterSelector(false);
+    setPrinterToAssign(null);
+    setSuccessMessage(`✅ Imprimante ${printerIp} assignée à ${targetType === 'caisse' ? 'Caisse' : 'Cuisine'}`);
   };
 
   const printTest = async (type: 'caisse' | 'cuisine') => {
@@ -1144,6 +1208,80 @@ export default function ParametresPage() {
                     </button>
                   )}
                 </div>
+              </div>
+
+              {/* Détection automatique des imprimantes */}
+              <div className="border-2 border-purple-300 rounded-2xl p-6 bg-purple-50">
+                <h3 className="text-xl font-bold text-gray-800 mb-4">🔍 Détection automatique des imprimantes</h3>
+                <p className="text-sm text-gray-600 mb-4">
+                  Scannez votre réseau local pour détecter automatiquement les imprimantes thermiques disponibles.
+                </p>
+                
+                <button
+                  onClick={scanAvailablePrinters}
+                  disabled={scanningPrinters || !printersConfig.print_server_url}
+                  className="w-full py-4 bg-purple-500 hover:bg-purple-600 disabled:bg-gray-400 text-white font-semibold rounded-2xl transition-all mb-4"
+                >
+                  {scanningPrinters ? '⏳ Scan en cours...' : '🔍 Scanner le réseau'}
+                </button>
+
+                {!printersConfig.print_server_url && (
+                  <p className="text-xs text-orange-600 mb-4">
+                    ⚠️ Veuillez configurer l&apos;URL du serveur d&apos;impression d&apos;abord
+                  </p>
+                )}
+
+                {/* Liste des imprimantes détectées */}
+                {availablePrinters.length > 0 && (
+                  <div className="space-y-3">
+                    <h4 className="font-semibold text-gray-700 mb-2">
+                      📋 Imprimantes détectées ({availablePrinters.length})
+                    </h4>
+                    {availablePrinters.map((printer, index) => (
+                      <div 
+                        key={index}
+                        className="bg-white border-2 border-purple-200 rounded-xl p-4 hover:border-purple-400 transition-all"
+                      >
+                        <div className="flex items-center justify-between">
+                          <div className="flex-1">
+                            <p className="font-bold text-gray-800">
+                              {printer.name || `Imprimante ${index + 1}`}
+                            </p>
+                            <p className="text-sm text-gray-600">
+                              📍 IP: {printer.ip}:{printer.port}
+                            </p>
+                            <p className="text-xs text-gray-500">
+                              {printer.status === 'online' ? '🟢 En ligne' : '🔴 Hors ligne'}
+                            </p>
+                          </div>
+                          <div className="flex gap-2">
+                            <button
+                              onClick={() => assignPrinter(printer.ip, printer.port, 'caisse')}
+                              className="px-4 py-2 bg-orange-500 hover:bg-orange-600 text-white text-sm font-semibold rounded-lg transition-all"
+                              title="Assigner à la caisse"
+                            >
+                              🖨️ Caisse
+                            </button>
+                            <button
+                              onClick={() => assignPrinter(printer.ip, printer.port, 'cuisine')}
+                              className="px-4 py-2 bg-green-500 hover:bg-green-600 text-white text-sm font-semibold rounded-lg transition-all"
+                              title="Assigner à la cuisine"
+                            >
+                              👨‍🍳 Cuisine
+                            </button>
+                          </div>
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                )}
+
+                {availablePrinters.length === 0 && !scanningPrinters && (
+                  <div className="text-center py-6 text-gray-500">
+                    <p className="text-sm">Aucune imprimante détectée</p>
+                    <p className="text-xs mt-1">Cliquez sur &quot;Scanner le réseau&quot; pour rechercher</p>
+                  </div>
+                )}
               </div>
 
               {/* Imprimante Caisse */}
