@@ -205,6 +205,32 @@ export default function ParametresPage() {
     }
   }, []);
 
+  // Détecter automatiquement le réseau quand l'URL du serveur change
+  useEffect(() => {
+    if (printersConfig.print_server_url && printersConfig.print_server_url.trim() !== '') {
+      // Extraire le sous-réseau depuis l'URL automatiquement
+      try {
+        const url = new URL(printersConfig.print_server_url);
+        const hostname = url.hostname;
+        const ipParts = hostname.split('.');
+        
+        if (ipParts.length === 4 && !isNaN(Number(ipParts[0]))) {
+          const detectedSubnet = `${ipParts[0]}.${ipParts[1]}.${ipParts[2]}`;
+          
+          // Mettre à jour silencieusement le champ
+          setTimeout(() => {
+            const subnetInput = document.getElementById('subnet-input') as HTMLInputElement;
+            if (subnetInput && subnetInput.value === '192.168.1') {
+              subnetInput.value = detectedSubnet;
+            }
+          }, 100);
+        }
+      } catch (error) {
+        // Ignorer les erreurs
+      }
+    }
+  }, [printersConfig.print_server_url]);
+
   const checkAdminAccess = async () => {
     const userPin = getUserPin();
     if (!userPin) {
@@ -472,11 +498,77 @@ export default function ParametresPage() {
     }
   };
 
+  // Fonction pour détecter le réseau WiFi actuel
+  const detectNetwork = async () => {
+    try {
+      const serverUrl = printersConfig.print_server_url;
+      
+      if (!serverUrl || serverUrl.trim() === '') {
+        setErrorMessage('❌ Veuillez configurer l\'URL du serveur d\'impression d\'abord');
+        return;
+      }
+
+      setSuccessMessage('🔍 Détection du réseau en cours...');
+
+      // Essayer de détecter depuis le serveur
+      try {
+        const response = await fetch(`${serverUrl}/detect-network`, {
+          method: 'GET',
+          headers: { 'Content-Type': 'application/json' }
+        });
+        
+        if (response.ok) {
+          const data = await response.json();
+          
+          if (data.success && data.subnet) {
+            // Mettre à jour le champ sous-réseau
+            const subnetInput = document.getElementById('subnet-input') as HTMLInputElement;
+            if (subnetInput) {
+              subnetInput.value = data.subnet;
+            }
+            
+            setSuccessMessage(`✅ Réseau détecté: ${data.subnet}.x (Serveur: ${data.serverIp})`);
+            return;
+          }
+        }
+      } catch (serverError) {
+        console.log('Détection serveur échouée, fallback sur URL...');
+      }
+
+      // Fallback : Extraire le sous-réseau depuis l'URL du serveur
+      try {
+        const url = new URL(serverUrl);
+        const hostname = url.hostname;
+        
+        // Si c'est une IP (ex: 192.168.1.50)
+        const ipParts = hostname.split('.');
+        if (ipParts.length === 4 && !isNaN(Number(ipParts[0]))) {
+          const detectedSubnet = `${ipParts[0]}.${ipParts[1]}.${ipParts[2]}`;
+          
+          const subnetInput = document.getElementById('subnet-input') as HTMLInputElement;
+          if (subnetInput) {
+            subnetInput.value = detectedSubnet;
+          }
+          
+          setSuccessMessage(`✅ Réseau détecté depuis l'URL: ${detectedSubnet}.x`);
+          return;
+        }
+      } catch (urlError) {
+        console.error('Erreur parsing URL:', urlError);
+      }
+
+      setErrorMessage('⚠️ Impossible de détecter le réseau. Veuillez entrer manuellement le sous-réseau (ex: 192.168.1)');
+      
+    } catch (error: any) {
+      setErrorMessage(`❌ Erreur: ${error.message}`);
+      console.error('Erreur détection réseau:', error);
+    }
+  };
+
   // Fonction pour scanner les imprimantes disponibles
   const scanAvailablePrinters = async () => {
     setScanningPrinters(true);
     setErrorMessage('');
-    setSuccessMessage('🔍 Recherche des imprimantes sur le réseau...');
     
     try {
       const serverUrl = printersConfig.print_server_url;
@@ -487,34 +579,55 @@ export default function ParametresPage() {
         return;
       }
 
+      // Récupérer les valeurs des inputs
+      const subnetInput = document.getElementById('subnet-input') as HTMLInputElement;
+      const startIpInput = document.getElementById('startip-input') as HTMLInputElement;
+      const endIpInput = document.getElementById('endip-input') as HTMLInputElement;
+      
+      const subnet = subnetInput?.value || '192.168.1';
+      const startIp = parseInt(startIpInput?.value || '1');
+      const endIp = parseInt(endIpInput?.value || '254');
+      
+      const ipRange = endIp - startIp + 1;
+      setSuccessMessage(`🔍 Scan de ${subnet}.${startIp}-${endIp} (${ipRange} IPs)... Cela peut prendre 20-60 secondes.`);
+
+      console.log('🔍 Démarrage du scan:', { subnet, startIp, endIp, serverUrl });
+
       // Appeler le serveur d'impression pour scanner le réseau
       const response = await fetch(`${serverUrl}/scan-printers`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
-          subnet: '192.168.1', // Peut être configuré
-          startIp: 1,
-          endIp: 254,
+          subnet,
+          startIp,
+          endIp,
           port: 9100
         })
       });
 
       if (!response.ok) {
-        throw new Error('Erreur lors du scan du réseau');
+        const errorText = await response.text();
+        throw new Error(`Erreur serveur: ${response.status} - ${errorText}`);
       }
 
       const data = await response.json();
       
+      console.log('📊 Résultat du scan:', data);
+      
       if (data.success && data.printers) {
         setAvailablePrinters(data.printers);
-        setSuccessMessage(`✅ ${data.printers.length} imprimante(s) trouvée(s) !`);
+        if (data.printers.length > 0) {
+          setSuccessMessage(`✅ ${data.printers.length} imprimante(s) trouvée(s) !`);
+        } else {
+          setSuccessMessage('ℹ️ Aucune imprimante trouvée. Vérifiez que vos imprimantes sont allumées et sur le même réseau.');
+        }
       } else {
         setAvailablePrinters([]);
         setSuccessMessage('ℹ️ Aucune imprimante trouvée sur le réseau');
       }
     } catch (error: any) {
       setErrorMessage(`❌ Erreur lors du scan: ${error.message}`);
-      console.error('Erreur scan imprimantes:', error);
+      console.error('❌ Erreur scan imprimantes:', error);
     } finally {
       setScanningPrinters(false);
     }
@@ -1216,14 +1329,92 @@ export default function ParametresPage() {
                 <p className="text-sm text-gray-600 mb-4">
                   Scannez votre réseau local pour détecter automatiquement les imprimantes thermiques disponibles.
                 </p>
+
+                {/* Options de scan */}
+                <div className="bg-white border-2 border-purple-200 rounded-xl p-4 mb-4">
+                  <div className="flex items-center justify-between mb-3">
+                    <h4 className="font-semibold text-gray-700 text-sm">⚙️ Options de scan</h4>
+                    <button
+                      onClick={detectNetwork}
+                      disabled={!printersConfig.print_server_url}
+                      className="px-3 py-1 bg-blue-500 hover:bg-blue-600 disabled:bg-gray-400 text-white text-xs font-semibold rounded-lg transition-all"
+                      title="Détecter automatiquement le réseau WiFi"
+                    >
+                      📡 Détecter réseau
+                    </button>
+                  </div>
+                  <div className="grid grid-cols-3 gap-3">
+                    <div className="col-span-1">
+                      <label className="block text-xs font-semibold text-gray-600 mb-1">
+                        Sous-réseau
+                      </label>
+                      <input
+                        type="text"
+                        defaultValue="192.168.1"
+                        id="subnet-input"
+                        className="w-full px-3 py-2 text-sm border border-gray-300 rounded-lg focus:border-purple-500 focus:outline-none"
+                        placeholder="192.168.1"
+                      />
+                    </div>
+                    <div className="col-span-1">
+                      <label className="block text-xs font-semibold text-gray-600 mb-1">
+                        IP début
+                      </label>
+                      <input
+                        type="number"
+                        defaultValue="1"
+                        id="startip-input"
+                        min="1"
+                        max="254"
+                        className="w-full px-3 py-2 text-sm border border-gray-300 rounded-lg focus:border-purple-500 focus:outline-none"
+                      />
+                    </div>
+                    <div className="col-span-1">
+                      <label className="block text-xs font-semibold text-gray-600 mb-1">
+                        IP fin
+                      </label>
+                      <input
+                        type="number"
+                        defaultValue="254"
+                        id="endip-input"
+                        min="1"
+                        max="254"
+                        className="w-full px-3 py-2 text-sm border border-gray-300 rounded-lg focus:border-purple-500 focus:outline-none"
+                      />
+                    </div>
+                  </div>
+                  <p className="text-xs text-gray-500 mt-2">
+                    💡 Astuce : Pour un scan rapide, utilisez une plage réduite (ex: 100-110)
+                  </p>
+                </div>
                 
-                <button
-                  onClick={scanAvailablePrinters}
-                  disabled={scanningPrinters || !printersConfig.print_server_url}
-                  className="w-full py-4 bg-purple-500 hover:bg-purple-600 disabled:bg-gray-400 text-white font-semibold rounded-2xl transition-all mb-4"
-                >
-                  {scanningPrinters ? '⏳ Scan en cours...' : '🔍 Scanner le réseau'}
-                </button>
+                <div className="grid grid-cols-2 gap-3 mb-4">
+                  <button
+                    onClick={scanAvailablePrinters}
+                    disabled={scanningPrinters || !printersConfig.print_server_url}
+                    className="py-4 bg-purple-500 hover:bg-purple-600 disabled:bg-gray-400 text-white font-semibold rounded-2xl transition-all"
+                  >
+                    {scanningPrinters ? '⏳ Scan complet...' : '🔍 Scan complet'}
+                  </button>
+                  <button
+                    onClick={() => {
+                      // Scan rapide sur une plage réduite
+                      const subnetInput = document.getElementById('subnet-input') as HTMLInputElement;
+                      const startIpInput = document.getElementById('startip-input') as HTMLInputElement;
+                      const endIpInput = document.getElementById('endip-input') as HTMLInputElement;
+                      
+                      // Définir une plage réduite pour le scan rapide
+                      startIpInput.value = '100';
+                      endIpInput.value = '110';
+                      
+                      scanAvailablePrinters();
+                    }}
+                    disabled={scanningPrinters || !printersConfig.print_server_url}
+                    className="py-4 bg-blue-500 hover:bg-blue-600 disabled:bg-gray-400 text-white font-semibold rounded-2xl transition-all"
+                  >
+                    {scanningPrinters ? '⏳ Scan...' : '⚡ Scan rapide (100-110)'}
+                  </button>
+                </div>
 
                 {!printersConfig.print_server_url && (
                   <p className="text-xs text-orange-600 mb-4">

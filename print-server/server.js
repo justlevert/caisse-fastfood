@@ -14,6 +14,54 @@ app.get('/health', (req, res) => {
   res.json({ status: 'ok', message: 'Serveur d\'impression actif' });
 });
 
+// Route pour détecter le réseau WiFi actuel
+app.get('/detect-network', (req, res) => {
+  try {
+    const os = require('os');
+    const networkInterfaces = os.networkInterfaces();
+    
+    let detectedSubnet = '192.168.1';
+    let serverIp = null;
+    
+    // Chercher l'interface WiFi active
+    for (const [name, interfaces] of Object.entries(networkInterfaces)) {
+      if (interfaces) {
+        for (const iface of interfaces) {
+          // Ignorer les interfaces loopback et IPv6
+          if (iface.family === 'IPv4' && !iface.internal) {
+            const ip = iface.address;
+            // Extraire le sous-réseau (ex: 192.168.1 depuis 192.168.1.50)
+            const parts = ip.split('.');
+            if (parts.length === 4) {
+              detectedSubnet = `${parts[0]}.${parts[1]}.${parts[2]}`;
+              serverIp = ip;
+              break;
+            }
+          }
+        }
+        if (serverIp) break;
+      }
+    }
+    
+    console.log(`📡 Réseau détecté: ${detectedSubnet}.x (IP serveur: ${serverIp})`);
+    
+    res.json({
+      success: true,
+      subnet: detectedSubnet,
+      serverIp: serverIp,
+      message: `Réseau détecté: ${detectedSubnet}.x`
+    });
+    
+  } catch (error) {
+    console.error('❌ Erreur détection réseau:', error.message);
+    res.status(500).json({
+      success: false,
+      subnet: '192.168.1',
+      message: 'Impossible de détecter le réseau, utilisation de 192.168.1 par défaut'
+    });
+  }
+});
+
 // Route pour tester une imprimante
 app.post('/test-printer', async (req, res) => {
   try {
@@ -63,12 +111,13 @@ app.post('/scan-printers', async (req, res) => {
   try {
     const { subnet = '192.168.1', startIp = 1, endIp = 254, port = 9100 } = req.body;
 
-    console.log(`🔍 Scan du réseau ${subnet}.${startIp}-${endIp}:${port}...`);
+    console.log(`\n🔍 Scan ${subnet}.${startIp}-${endIp}:${port} (${endIp - startIp + 1} IPs)`);
 
     const printers = [];
-    const promises = [];
+    let scannedCount = 0;
+    const totalIps = endIp - startIp + 1;
 
-    // Scanner les IPs en parallèle (par groupes de 20 pour ne pas surcharger)
+    // Scanner les IPs en parallèle (par groupes de 20 pour plus de rapidité)
     const batchSize = 20;
     for (let i = startIp; i <= endIp; i += batchSize) {
       const batch = [];
@@ -82,13 +131,15 @@ app.post('/scan-printers', async (req, res) => {
               const printer = new ThermalPrinter({
                 type: PrinterTypes.EPSON,
                 interface: `tcp://${ip}:${port}`,
-                options: { timeout: 1000 } // Timeout court pour le scan
+                options: { 
+                  timeout: 1500 // Timeout optimisé
+                }
               });
 
               const isConnected = await printer.isPrinterConnected();
 
               if (isConnected) {
-                console.log(`✅ Imprimante trouvée: ${ip}:${port}`);
+                console.log(`✅ Trouvée: ${ip}:${port}`);
                 return {
                   ip,
                   port,
@@ -97,7 +148,7 @@ app.post('/scan-printers', async (req, res) => {
                 };
               }
             } catch (error) {
-              // Ignorer les erreurs (imprimante non trouvée)
+              // Erreur silencieuse - pas de log pour ne pas polluer
             }
             return null;
           })()
@@ -105,10 +156,20 @@ app.post('/scan-printers', async (req, res) => {
       }
 
       const results = await Promise.all(batch);
-      printers.push(...results.filter(p => p !== null));
+      const foundInBatch = results.filter(p => p !== null);
+      printers.push(...foundInBatch);
+      
+      scannedCount += batch.length;
+      // Afficher la progression tous les 50 IPs seulement
+      if (scannedCount % 50 === 0 || scannedCount === totalIps) {
+        console.log(`📊 ${scannedCount}/${totalIps} IPs | ${printers.length} imprimante(s)`);
+      }
     }
 
-    console.log(`✅ Scan terminé: ${printers.length} imprimante(s) trouvée(s)`);
+    console.log(`✅ Scan terminé: ${printers.length} imprimante(s) trouvée(s)\n`);
+    if (printers.length > 0) {
+      printers.forEach(p => console.log(`   🖨️  ${p.ip}:${p.port}`));
+    }
 
     res.json({
       success: true,
@@ -117,7 +178,7 @@ app.post('/scan-printers', async (req, res) => {
     });
 
   } catch (error) {
-    console.error('❌ Erreur scan réseau:', error);
+    console.error('❌ Erreur scan:', error.message);
     res.status(500).json({
       success: false,
       message: error.message || 'Erreur lors du scan du réseau'
