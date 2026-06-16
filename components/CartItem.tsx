@@ -7,7 +7,7 @@ import { useCurrency } from '@/lib/utils/currency';
 interface CartItemProps {
   item: CartItemType;
   index: number;
-  onUpdateQuantity: (productId: string, delta: number) => void;
+  onUpdateQuantity: (index: number, delta: number) => void;
   onRemove: (index: number) => void;
   onEdit?: (index: number) => void;
 }
@@ -78,7 +78,7 @@ const CartItem = React.memo(({ item, index, onUpdateQuantity, onRemove, onEdit }
       <div className="flex items-center justify-between mt-3 lg:mt-4 pt-3 lg:pt-4 border-t border-gray-200">
         <div className="flex items-center gap-3">
           <button
-            onClick={() => onUpdateQuantity(item.product.id, -1)}
+            onClick={() => onUpdateQuantity(index, -1)}
             className="w-10 h-10 lg:w-12 lg:h-12 rounded-full bg-gray-200 hover:bg-gray-300 border-2 border-gray-300 hover:border-gray-400 font-bold text-xl lg:text-2xl transition-all duration-200 active:scale-95 flex items-center justify-center"
           >
             −
@@ -87,7 +87,7 @@ const CartItem = React.memo(({ item, index, onUpdateQuantity, onRemove, onEdit }
             {item.quantite}
           </span>
           <button
-            onClick={() => onUpdateQuantity(item.product.id, 1)}
+            onClick={() => onUpdateQuantity(index, 1)}
             className="w-10 h-10 lg:w-12 lg:h-12 rounded-full bg-gradient-to-br from-orange-500 to-orange-600 hover:from-orange-600 hover:to-orange-700 border-2 border-orange-400 shadow-md hover:shadow-lg font-bold text-xl lg:text-2xl text-white transition-all duration-200 active:scale-95 flex items-center justify-center"
           >
             +

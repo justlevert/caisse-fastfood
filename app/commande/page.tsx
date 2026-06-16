@@ -106,11 +106,11 @@ export default function CommandePage() {
     }
   };
 
-  const updateQuantity = useCallback((productId: string, delta: number) => {
+  const updateQuantity = useCallback((index: number, delta: number) => {
     setCart((prevCart) =>
       prevCart
-        .map((item) =>
-          item.product.id === productId
+        .map((item, i) =>
+          i === index
             ? { ...item, quantite: item.quantite + delta }
             : item
         )
